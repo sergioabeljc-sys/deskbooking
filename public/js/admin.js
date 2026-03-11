@@ -20,6 +20,18 @@ const PIE_COLORS = [
   "#0891b2","#be185d","#65a30d","#ea580c","#0284c7",
 ];
 
+// Tooltip singleton
+let pieTooltip = null;
+function getPieTooltip() {
+  if (!pieTooltip) {
+    pieTooltip = document.createElement("div");
+    pieTooltip.id = "pie-tooltip";
+    pieTooltip.className = "pie-tooltip";
+    document.body.appendChild(pieTooltip);
+  }
+  return pieTooltip;
+}
+
 function renderPieChart(data, containerId) {
   const el = document.getElementById(containerId);
   if (!data || data.length === 0) {
@@ -43,10 +55,9 @@ function renderPieChart(data, containerId) {
     const color = PIE_COLORS[i % PIE_COLORS.length];
 
     if (data.length === 1) {
-      paths += `<circle cx="${cx}" cy="${cy}" r="${r}" fill="${color}"/>`;
+      paths += `<circle cx="${cx}" cy="${cy}" r="${r}" fill="${color}" data-idx="${i}"/>`;
     } else {
-      paths += `<path d="M${cx},${cy}L${x1.toFixed(2)},${y1.toFixed(2)}A${r},${r} 0 ${large},1 ${x2.toFixed(2)},${y2.toFixed(2)}Z" fill="${color}">
-        <title>${escapeHtml(item.user_name)}: ${item.total} reserva(s)</title></path>`;
+      paths += `<path d="M${cx},${cy}L${x1.toFixed(2)},${y1.toFixed(2)}A${r},${r} 0 ${large},1 ${x2.toFixed(2)},${y2.toFixed(2)}Z" fill="${color}" data-idx="${i}"/>`;
     }
     angle = end;
   });
@@ -63,9 +74,32 @@ function renderPieChart(data, containerId) {
 
   el.innerHTML = `
     <div class="pie-chart-wrap">
-      <svg viewBox="0 0 180 180" width="180" height="180" style="flex-shrink:0">${paths}</svg>
+      <svg viewBox="0 0 180 180" width="180" height="180" style="flex-shrink:0;cursor:pointer">${paths}</svg>
       <div class="pie-legend">${legend}</div>
     </div>`;
+
+  // Attach tooltip events after render
+  const tooltip = getPieTooltip();
+  el.querySelectorAll("path[data-idx], circle[data-idx]").forEach((shape) => {
+    const idx = parseInt(shape.getAttribute("data-idx"), 10);
+    const item = data[idx];
+    const pct = Math.round((item.total / total) * 100);
+    const label = `${item.user_name}: ${item.total} reserva(s) — ${pct}%`;
+
+    shape.addEventListener("mouseenter", (e) => {
+      shape.style.opacity = "0.82";
+      tooltip.textContent = label;
+      tooltip.classList.add("visible");
+    });
+    shape.addEventListener("mousemove", (e) => {
+      tooltip.style.left = (e.clientX + 14) + "px";
+      tooltip.style.top  = (e.clientY - 32) + "px";
+    });
+    shape.addEventListener("mouseleave", () => {
+      shape.style.opacity = "";
+      tooltip.classList.remove("visible");
+    });
+  });
 }
 
 async function loadDashboard() {

@@ -473,6 +473,23 @@ tr:hover td { background: var(--bg); }
 .progress-bar-day { background: #16a34a; }
 .progress-count { font-size: .8rem; color: var(--text-muted); min-width: 24px; text-align: right; }
 
+/* Pie tooltip */
+.pie-tooltip {
+  position: fixed;
+  background: rgba(15, 23, 42, 0.92);
+  color: #fff;
+  padding: .375rem .75rem;
+  border-radius: 6px;
+  font-size: .8125rem;
+  font-weight: 500;
+  pointer-events: none;
+  white-space: nowrap;
+  z-index: 9999;
+  opacity: 0;
+  transition: opacity .12s;
+}
+.pie-tooltip.visible { opacity: 1; }
+
 /* Pie chart */
 .pie-chart-wrap {
   display: flex;
