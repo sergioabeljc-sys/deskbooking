@@ -2,10 +2,45 @@ const express = require("express");
 const path = require("path");
 const morgan = require("morgan");
 const rateLimit = require("express-rate-limit");
+const helmet = require("helmet");
+const cors = require("cors");
 const swaggerUi = require("swagger-ui-express");
 const swaggerSpec = require("./swagger");
 
 const app = express();
+
+// Security headers
+app.use(
+  helmet({
+    contentSecurityPolicy: {
+      directives: {
+        defaultSrc: ["'self'"],
+        scriptSrc: ["'self'"],
+        styleSrc: ["'self'", "'unsafe-inline'"],
+        imgSrc: [
+          "'self'",
+          "data:",
+          "https://cdn.worldvectorlogo.com",
+          "https://cdn.prod.website-files.com",
+          "https://www.spcorporate.com.br",
+        ],
+        connectSrc: ["'self'"],
+        fontSrc: ["'self'"],
+        frameSrc: ["'none'"],
+      },
+    },
+  })
+);
+
+// CORS — permite apenas origem configurada (ou mesma origem em produção)
+const allowedOrigin = process.env.ALLOWED_ORIGIN || `http://localhost:${process.env.PORT || 3000}`;
+app.use(
+  cors({
+    origin: process.env.NODE_ENV === "test" ? "*" : allowedOrigin,
+    methods: ["GET", "POST", "PUT", "DELETE"],
+    allowedHeaders: ["Content-Type", "Authorization"],
+  })
+);
 
 // Logging de requisicoes HTTP (silenciado em testes)
 if (process.env.NODE_ENV !== "test") {

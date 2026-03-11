@@ -301,7 +301,7 @@ async function loadDesks() {
           <button class="btn btn-ghost btn-sm" onclick="toggleDesk(${d.id}, ${d.is_active})">
             ${d.is_active ? "Desativar" : "Ativar"}
           </button>
-          <button class="btn btn-danger btn-sm" onclick="deleteDesk(${d.id}, '${d.name.replace(/'/g, "\\'")}')">Excluir</button>
+          <button class="btn btn-danger btn-sm" data-id="${d.id}" data-name="${escapeHtml(d.name)}" onclick="deleteDesk(+this.dataset.id, this.dataset.name)">Excluir</button>
         </td>
       </tr>
     `
@@ -384,7 +384,7 @@ async function loadUsers() {
             <button class="btn btn-ghost btn-sm" onclick="toggleAdmin(${u.id}, ${u.is_admin})">
               ${u.is_admin ? "Remover Admin" : "Tornar Admin"}
             </button>
-            <button class="btn btn-danger btn-sm" onclick="deleteUser(${u.id}, '${u.name.replace(/'/g, "\\'")}')">Excluir</button>
+            <button class="btn btn-danger btn-sm" data-id="${u.id}" data-name="${escapeHtml(u.name)}" onclick="deleteUser(+this.dataset.id, this.dataset.name)">Excluir</button>
           `
               : '<span style="color:var(--text-muted);font-size:.8rem">Você</span>'
           }

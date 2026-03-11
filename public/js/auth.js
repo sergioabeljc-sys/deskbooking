@@ -40,7 +40,7 @@ form.addEventListener("submit", async (e) => {
       if (!name) { showToast("Informe seu nome", "error"); return; }
       data = await API.post("/auth/register", { name, email, password });
     }
-    API.setSession(data.token, data.user);
+    API.setSession(data.token, data.user, data.refreshToken);
     window.location.href = "/app.html";
   } catch (err) {
     showToast(err.message, "error");

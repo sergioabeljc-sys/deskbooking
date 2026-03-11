@@ -80,6 +80,52 @@ describe("Auth", () => {
     });
   });
 
+  describe("POST /api/auth/refresh", () => {
+    it("emite novo token com refresh token valido", async () => {
+      const login = await request(app).post("/api/auth/login").send({
+        email: "admin@test.com",
+        password: "123456",
+      });
+      const res = await request(app)
+        .post("/api/auth/refresh")
+        .send({ refreshToken: login.body.refreshToken });
+      expect(res.status).toBe(200);
+      expect(res.body.token).toBeDefined();
+      expect(res.body.refreshToken).toBeDefined();
+    });
+
+    it("rejeita refresh token invalido", async () => {
+      const res = await request(app)
+        .post("/api/auth/refresh")
+        .send({ refreshToken: "token-invalido" });
+      expect(res.status).toBe(401);
+    });
+
+    it("rejeita uso duplo do mesmo refresh token", async () => {
+      const login = await request(app).post("/api/auth/login").send({
+        email: "admin@test.com",
+        password: "123456",
+      });
+      const rt = login.body.refreshToken;
+      await request(app).post("/api/auth/refresh").send({ refreshToken: rt });
+      const res = await request(app).post("/api/auth/refresh").send({ refreshToken: rt });
+      expect(res.status).toBe(401);
+    });
+  });
+
+  describe("POST /api/auth/logout", () => {
+    it("revoga o refresh token no logout", async () => {
+      const login = await request(app).post("/api/auth/login").send({
+        email: "admin@test.com",
+        password: "123456",
+      });
+      const rt = login.body.refreshToken;
+      await request(app).post("/api/auth/logout").send({ refreshToken: rt });
+      const res = await request(app).post("/api/auth/refresh").send({ refreshToken: rt });
+      expect(res.status).toBe(401);
+    });
+  });
+
   describe("GET /api/auth/me", () => {
     it("retorna dados do usuario autenticado", async () => {
       const login = await request(app).post("/api/auth/login").send({

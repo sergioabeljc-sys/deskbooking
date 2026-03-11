@@ -1,4 +1,5 @@
 const jwt = require("jsonwebtoken");
+const db = require("../db");
 
 const SECRET = process.env.JWT_SECRET;
 if (!SECRET) {
@@ -24,7 +25,8 @@ function authMiddleware(req, res, next) {
 }
 
 function adminMiddleware(req, res, next) {
-  if (!req.user?.is_admin) return res.status(403).json({ error: "Acesso restrito a administradores" });
+  const row = db.prepare("SELECT is_admin FROM users WHERE id = ?").get(req.user.id);
+  if (!row?.is_admin) return res.status(403).json({ error: "Acesso restrito a administradores" });
   next();
 }
 

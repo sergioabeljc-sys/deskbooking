@@ -1,5 +1,6 @@
 const API = {
   getToken: () => localStorage.getItem("token"),
+  getRefreshToken: () => localStorage.getItem("refreshToken"),
   getUser: () => {
     try {
       return JSON.parse(localStorage.getItem("user") || "null");
@@ -8,14 +9,34 @@ const API = {
     }
   },
 
-  setSession(token, user) {
+  setSession(token, user, refreshToken) {
     localStorage.setItem("token", token);
     localStorage.setItem("user", JSON.stringify(user));
+    if (refreshToken) localStorage.setItem("refreshToken", refreshToken);
   },
 
   clearSession() {
     localStorage.removeItem("token");
     localStorage.removeItem("user");
+    localStorage.removeItem("refreshToken");
+  },
+
+  async _tryRefresh() {
+    const refreshToken = API.getRefreshToken();
+    if (!refreshToken) return false;
+    try {
+      const res = await fetch("/api/auth/refresh", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ refreshToken }),
+      });
+      if (!res.ok) return false;
+      const data = await res.json();
+      API.setSession(data.token, data.user, data.refreshToken);
+      return true;
+    } catch {
+      return false;
+    }
   },
 
   async fetch(path, options = {}) {
@@ -27,6 +48,28 @@ const API = {
         ...options.headers,
       },
     });
+
+    if (res.status === 401 && path !== "/auth/refresh" && path !== "/auth/login") {
+      const refreshed = await API._tryRefresh();
+      if (refreshed) {
+        const retry = await fetch(`/api${path}`, {
+          ...options,
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${API.getToken()}`,
+            ...options.headers,
+          },
+        });
+        const retryData = await retry.json();
+        if (!retry.ok) throw new Error(retryData.error || "Erro desconhecido");
+        return retryData;
+      } else {
+        API.clearSession();
+        window.location.href = "/";
+        return;
+      }
+    }
+
     const data = await res.json();
     if (!res.ok) throw new Error(data.error || "Erro desconhecido");
     return data;
@@ -51,7 +94,17 @@ function requireAuth(adminOnly = false) {
   return user;
 }
 
-function logout() {
+async function logout() {
+  const refreshToken = API.getRefreshToken();
+  if (refreshToken) {
+    try {
+      await fetch("/api/auth/logout", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ refreshToken }),
+      });
+    } catch {}
+  }
   API.clearSession();
   window.location.href = "/";
 }

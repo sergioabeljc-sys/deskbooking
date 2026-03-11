@@ -227,7 +227,6 @@ async function loadWeekView() {
         else cls += "available";
 
         const clickable = !isBooked && !isInactive && !isMine && !isPast;
-        const onclick = clickable ? `weekBookDesk(${desk.id},'${desk.name.replace(/'/g, "\\'")}','${iso}')` : "";
 
         let inner = "";
         if (isInactive) inner = '<span class="week-cell-icon">🚫</span>';
@@ -235,7 +234,7 @@ async function loadWeekView() {
         else if (isBooked) inner = renderAvatar(booking.user_name, 22) + `<span class="week-cell-label">${escapeHtml(booking.user_name.split(" ")[0])}</span>`;
         else if (!isPast) inner = '<span class="week-cell-icon" style="opacity:.4">🪑</span>';
 
-        html += `<div class="${cls}"${clickable ? ` onclick="${onclick}" style="cursor:pointer"` : ""}>${inner}</div>`;
+        html += `<div class="${cls}"${clickable ? ` data-desk-id="${desk.id}" data-desk-name="${escapeHtml(desk.name)}" data-date="${iso}" style="cursor:pointer"` : ""}>${inner}</div>`;
       });
 
       html += "</div>";
@@ -243,6 +242,12 @@ async function loadWeekView() {
 
     html += "</div>";
     container.innerHTML = html;
+
+    container.querySelectorAll("[data-desk-id]").forEach((el) => {
+      el.addEventListener("click", () =>
+        weekBookDesk(+el.dataset.deskId, el.dataset.deskName, el.dataset.date)
+      );
+    });
   } catch (err) {
     container.innerHTML = `<p style="color:var(--danger)">${err.message}</p>`;
   }
@@ -318,8 +323,8 @@ async function submitProfile() {
   }
 
   try {
-    const { token, user: updated } = await API.put("/auth/profile", body);
-    API.setSession(token, updated);
+    const { token, refreshToken, user: updated } = await API.put("/auth/profile", body);
+    API.setSession(token, updated, refreshToken);
     document.getElementById("user-name").textContent = updated.name;
     closeProfileModal();
     showToast("Perfil atualizado com sucesso!");

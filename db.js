@@ -40,6 +40,15 @@ db.exec(`
     FOREIGN KEY (desk_id) REFERENCES desks(id) ON DELETE CASCADE,
     UNIQUE(desk_id, date)
   );
+
+  CREATE TABLE IF NOT EXISTS refresh_tokens (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    user_id INTEGER NOT NULL,
+    token TEXT UNIQUE NOT NULL,
+    expires_at TEXT NOT NULL,
+    created_at TEXT DEFAULT (datetime('now')),
+    FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+  );
 `);
 
 // Seed default desks if none exist
