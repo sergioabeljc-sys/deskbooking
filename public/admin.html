@@ -1,0 +1,119 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Admin — Desk Booking</title>
+  <link rel="stylesheet" href="/css/style.css" />
+</head>
+<body>
+  <header class="header">
+    <span class="header-brand">Desk Booking — Admin</span>
+    <div class="header-user">
+      <div class="header-nav"><a href="/app.html">Ir para App</a></div>
+      <span id="user-name"></span>
+      <button class="btn btn-ghost btn-sm" onclick="logout()">Sair</button>
+    </div>
+  </header>
+
+  <nav class="admin-tabs">
+    <button class="tab-btn active" data-tab="bookings" onclick="switchTab('bookings')">Reservas</button>
+    <button class="tab-btn" data-tab="desks" onclick="switchTab('desks')">Mesas</button>
+    <button class="tab-btn" data-tab="users" onclick="switchTab('users')">Usuários</button>
+  </nav>
+
+  <div class="admin-content">
+    <div id="tab-bookings">
+      <div class="card">
+        <div class="card-header">Todas as Reservas</div>
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th>Data</th>
+                <th>Mesa</th>
+                <th>Usuário</th>
+                <th></th>
+              </tr>
+            </thead>
+            <tbody id="bookings-body">
+              <tr><td colspan="4" class="empty-state">Carregando...</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <div id="tab-desks" style="display:none">
+      <div class="card">
+        <div class="card-header">
+          Mesas
+          <button class="btn btn-primary btn-sm" onclick="showAddDesk()">+ Nova Mesa</button>
+        </div>
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th>Nome</th>
+                <th>Posição</th>
+                <th>Status</th>
+                <th></th>
+              </tr>
+            </thead>
+            <tbody id="desks-body">
+              <tr><td colspan="4" class="empty-state">Carregando...</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <div id="tab-users" style="display:none">
+      <div class="card">
+        <div class="card-header">Usuários</div>
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th>Nome</th>
+                <th>E-mail</th>
+                <th>Perfil</th>
+                <th></th>
+              </tr>
+            </thead>
+            <tbody id="users-body">
+              <tr><td colspan="4" class="empty-state">Carregando...</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Modal: Nova Mesa -->
+  <div id="modal-overlay" class="modal-overlay">
+    <div class="modal-box">
+      <div class="modal-title">Nova Mesa</div>
+      <div class="form-group">
+        <label>Nome</label>
+        <input type="text" id="new-desk-name" placeholder="Mesa 13" />
+      </div>
+      <div class="form-group">
+        <label>Coluna (X)</label>
+        <input type="number" id="new-desk-x" min="1" placeholder="1" />
+      </div>
+      <div class="form-group">
+        <label>Linha (Y)</label>
+        <input type="number" id="new-desk-y" min="1" placeholder="1" />
+      </div>
+      <div class="modal-actions">
+        <button class="btn btn-primary" onclick="submitAddDesk()">Criar</button>
+        <button class="btn btn-ghost" onclick="closeModal()">Cancelar</button>
+      </div>
+    </div>
+  </div>
+
+  <script src="/js/api.js"></script>
+  <script src="/js/admin.js"></script>
+</body>
+</html>

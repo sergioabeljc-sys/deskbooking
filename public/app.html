@@ -1,0 +1,59 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Desk Booking</title>
+  <link rel="stylesheet" href="/css/style.css" />
+</head>
+<body>
+  <header class="header">
+    <span class="header-brand">Desk Booking</span>
+    <div class="header-user">
+      <div class="header-nav" id="admin-link" style="display:none">
+        <a href="/admin.html">Painel Admin</a>
+      </div>
+      <span id="user-name"></span>
+      <button class="btn btn-ghost btn-sm" onclick="logout()">Sair</button>
+    </div>
+  </header>
+
+  <div class="app-layout">
+    <aside>
+      <div class="card">
+        <div class="card-header">Minhas Reservas</div>
+        <div class="card-body">
+          <ul class="booking-list" id="my-bookings">
+            <li class="empty-state">Carregando...</li>
+          </ul>
+        </div>
+      </div>
+    </aside>
+
+    <main>
+      <div class="card">
+        <div class="card-header">Reservar Mesa</div>
+        <div class="card-body">
+          <div class="date-picker-row">
+            <label for="date-input" style="font-weight:500;font-size:.9rem">Data:</label>
+            <input type="date" id="date-input" />
+            <button class="btn btn-ghost btn-sm" onclick="loadDesks()">Atualizar</button>
+          </div>
+          <div class="desk-grid" id="desk-grid">
+            <p style="grid-column:1/-1;color:var(--text-muted)">Carregando mesas...</p>
+          </div>
+          <div class="legend">
+            <div class="legend-item"><div class="legend-dot available"></div> Disponível</div>
+            <div class="legend-item"><div class="legend-dot mine"></div> Minha reserva</div>
+            <div class="legend-item"><div class="legend-dot booked"></div> Ocupada</div>
+            <div class="legend-item"><div class="legend-dot inactive"></div> Inativa</div>
+          </div>
+        </div>
+      </div>
+    </main>
+  </div>
+
+  <script src="/js/api.js"></script>
+  <script src="/js/app.js"></script>
+</body>
+</html>
