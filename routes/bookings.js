@@ -81,6 +81,16 @@ router.get("/stats", authMiddleware, adminMiddleware, (req, res) => {
   // Count active desks for occupancy rate
   const activeDeskCount = db.prepare("SELECT COUNT(*) AS cnt FROM desks WHERE is_active = 1").get().cnt;
 
+  const byUser = db.prepare(`
+    SELECT u.name AS user_name, COUNT(*) AS total
+    FROM bookings b
+    JOIN users u ON b.user_id = u.id
+    WHERE b.date >= date('now', '-30 days')
+    GROUP BY b.user_id
+    ORDER BY total DESC
+    LIMIT 10
+  `).all();
+
   res.json({
     byDesk: byDesk.map((r) => ({
       desk_name: r.desk_name,
@@ -88,6 +98,7 @@ router.get("/stats", authMiddleware, adminMiddleware, (req, res) => {
       dates: r.dates ? r.dates.split(",") : [],
     })),
     byDayOfWeek: byDayFormatted,
+    byUser,
     totalLast30,
     peakDesk,
     activeDeskCount,

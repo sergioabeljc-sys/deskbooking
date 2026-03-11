@@ -15,19 +15,75 @@ function switchTab(tab) {
 }
 
 // ─── Dashboard ────────────────────────────────────────────────────────────────
+const PIE_COLORS = [
+  "#2563eb","#16a34a","#dc2626","#d97706","#7c3aed",
+  "#0891b2","#be185d","#65a30d","#ea580c","#0284c7",
+];
+
+function renderPieChart(data, containerId) {
+  const el = document.getElementById(containerId);
+  if (!data || data.length === 0) {
+    el.innerHTML = '<p class="empty-state">Sem dados</p>';
+    return;
+  }
+
+  const total = data.reduce((sum, d) => sum + d.total, 0);
+  const cx = 90, cy = 90, r = 80;
+  let angle = -Math.PI / 2;
+  let paths = "";
+
+  data.forEach((item, i) => {
+    const slice = (item.total / total) * 2 * Math.PI;
+    const end = angle + slice;
+    const x1 = cx + r * Math.cos(angle);
+    const y1 = cy + r * Math.sin(angle);
+    const x2 = cx + r * Math.cos(end);
+    const y2 = cy + r * Math.sin(end);
+    const large = slice > Math.PI ? 1 : 0;
+    const color = PIE_COLORS[i % PIE_COLORS.length];
+
+    if (data.length === 1) {
+      paths += `<circle cx="${cx}" cy="${cy}" r="${r}" fill="${color}"/>`;
+    } else {
+      paths += `<path d="M${cx},${cy}L${x1.toFixed(2)},${y1.toFixed(2)}A${r},${r} 0 ${large},1 ${x2.toFixed(2)},${y2.toFixed(2)}Z" fill="${color}">
+        <title>${escapeHtml(item.user_name)}: ${item.total} reserva(s)</title></path>`;
+    }
+    angle = end;
+  });
+
+  const legend = data.map((item, i) => {
+    const pct = Math.round((item.total / total) * 100);
+    const color = PIE_COLORS[i % PIE_COLORS.length];
+    return `<div class="pie-legend-item">
+      <span class="pie-legend-dot" style="background:${color}"></span>
+      <span class="pie-legend-name">${escapeHtml(item.user_name)}</span>
+      <span class="pie-legend-count">${item.total} <span style="color:var(--text-muted)">(${pct}%)</span></span>
+    </div>`;
+  }).join("");
+
+  el.innerHTML = `
+    <div class="pie-chart-wrap">
+      <svg viewBox="0 0 180 180" width="180" height="180" style="flex-shrink:0">${paths}</svg>
+      <div class="pie-legend">${legend}</div>
+    </div>`;
+}
+
 async function loadDashboard() {
   const cardsEl = document.getElementById("dashboard-cards");
   const chartByDesk = document.getElementById("chart-by-desk");
   const chartByDay = document.getElementById("chart-by-day");
 
+  const chartByUser = document.getElementById("chart-by-user");
+
   cardsEl.innerHTML = '<p class="empty-state">Carregando...</p>';
   chartByDesk.innerHTML = '<p class="empty-state">Carregando...</p>';
   chartByDay.innerHTML = '<p class="empty-state">Carregando...</p>';
+  chartByUser.innerHTML = '<p class="empty-state">Carregando...</p>';
 
   try {
     const stats = await API.get("/bookings/stats");
 
-    const { totalLast30, peakDesk, byDesk, byDayOfWeek, activeDeskCount } = stats;
+    const { totalLast30, peakDesk, byDesk, byDayOfWeek, byUser, activeDeskCount } = stats;
 
     // Working days in last 30 days ≈ 22
     const WORKING_DAYS = 22;
@@ -90,11 +146,14 @@ async function loadDashboard() {
         })
         .join("");
     }
+    renderPieChart(byUser, "chart-by-user");
+
   } catch (err) {
     const msg = `<p class="empty-state">${escapeHtml(err.message)}</p>`;
     cardsEl.innerHTML = msg;
     chartByDesk.innerHTML = msg;
     chartByDay.innerHTML = msg;
+    chartByUser.innerHTML = msg;
   }
 }
 

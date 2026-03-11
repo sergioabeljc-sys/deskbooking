@@ -472,3 +472,40 @@ tr:hover td { background: var(--bg); }
 }
 .progress-bar-day { background: #16a34a; }
 .progress-count { font-size: .8rem; color: var(--text-muted); min-width: 24px; text-align: right; }
+
+/* Pie chart */
+.pie-chart-wrap {
+  display: flex;
+  align-items: center;
+  gap: 2rem;
+  flex-wrap: wrap;
+}
+.pie-legend {
+  display: flex;
+  flex-direction: column;
+  gap: .5rem;
+  flex: 1;
+  min-width: 180px;
+}
+.pie-legend-item {
+  display: flex;
+  align-items: center;
+  gap: .5rem;
+  font-size: .875rem;
+}
+.pie-legend-dot {
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+.pie-legend-name {
+  flex: 1;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.pie-legend-count {
+  font-weight: 600;
+  white-space: nowrap;
+}
