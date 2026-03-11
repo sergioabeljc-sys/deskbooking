@@ -60,4 +60,56 @@ router.get("/me", authMiddleware, (req, res) => {
   res.json(user);
 });
 
+// Atualizar perfil
+router.put("/profile", authMiddleware, (req, res) => {
+  const { name, email, password, confirmPassword } = req.body;
+
+  if (!name && !email && !password)
+    return res.status(400).json({ error: "Nenhum campo para atualizar" });
+
+  const current = db
+    .prepare("SELECT id, name, email, is_admin, password_hash FROM users WHERE id = ?")
+    .get(req.user.id);
+  if (!current) return res.status(404).json({ error: "Usuário não encontrado" });
+
+  // Validate email uniqueness
+  if (email && email.trim().toLowerCase() !== current.email) {
+    const existing = db
+      .prepare("SELECT id FROM users WHERE email = ? AND id != ?")
+      .get(email.trim().toLowerCase(), current.id);
+    if (existing) return res.status(409).json({ error: "E-mail já cadastrado por outro usuário" });
+  }
+
+  // Validate password
+  if (password !== undefined && password !== "") {
+    if (password.length < 6)
+      return res.status(400).json({ error: "Senha deve ter ao menos 6 caracteres" });
+    if (password !== confirmPassword)
+      return res.status(400).json({ error: "Senhas não conferem" });
+  }
+
+  const newName = name ? name.trim() : current.name;
+  const newEmail = email ? email.trim().toLowerCase() : current.email;
+  const newHash =
+    password && password.length >= 6
+      ? bcrypt.hashSync(password, 10)
+      : current.password_hash;
+
+  try {
+    db.prepare("UPDATE users SET name = ?, email = ?, password_hash = ? WHERE id = ?")
+      .run(newName, newEmail, newHash, current.id);
+
+    const updated = db
+      .prepare("SELECT id, name, email, is_admin FROM users WHERE id = ?")
+      .get(current.id);
+
+    const token = jwt.sign(updated, SECRET, { expiresIn: "7d" });
+    res.json({ token, user: updated });
+  } catch (e) {
+    if (e.message.includes("UNIQUE"))
+      return res.status(409).json({ error: "E-mail já cadastrado por outro usuário" });
+    res.status(500).json({ error: "Erro interno" });
+  }
+});
+
 module.exports = router;

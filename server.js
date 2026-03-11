@@ -2,6 +2,8 @@ const express = require("express");
 const path = require("path");
 const morgan = require("morgan");
 const rateLimit = require("express-rate-limit");
+const swaggerUi = require("swagger-ui-express");
+const swaggerSpec = require("./swagger");
 
 const app = express();
 
@@ -50,6 +52,9 @@ app.use(
 
 app.use(express.json());
 app.use(express.static(path.join(__dirname, "public")));
+
+// Swagger docs
+app.use("/api/docs", swaggerUi.serve, swaggerUi.setup(swaggerSpec));
 
 app.use("/api/auth", require("./routes/auth"));
 app.use("/api/desks", require("./routes/desks"));

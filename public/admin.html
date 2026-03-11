@@ -17,15 +17,43 @@
   </header>
 
   <nav class="admin-tabs">
-    <button class="tab-btn active" data-tab="bookings" onclick="switchTab('bookings')">Reservas</button>
+    <button class="tab-btn active" data-tab="dashboard" onclick="switchTab('dashboard')">Dashboard</button>
+    <button class="tab-btn" data-tab="bookings" onclick="switchTab('bookings')">Reservas</button>
     <button class="tab-btn" data-tab="desks" onclick="switchTab('desks')">Mesas</button>
     <button class="tab-btn" data-tab="users" onclick="switchTab('users')">Usuários</button>
   </nav>
 
   <div class="admin-content">
-    <div id="tab-bookings">
+
+    <!-- Dashboard tab -->
+    <div id="tab-dashboard">
+      <div class="dashboard-cards" id="dashboard-cards">
+        <!-- Filled by JS -->
+      </div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:1.5rem;margin-top:1.5rem" id="dashboard-charts">
+        <div class="card">
+          <div class="card-header">Ocupação por Mesa (30 dias)</div>
+          <div class="card-body" id="chart-by-desk"><p class="empty-state">Carregando...</p></div>
+        </div>
+        <div class="card">
+          <div class="card-header">Reservas por Dia da Semana</div>
+          <div class="card-body" id="chart-by-day"><p class="empty-state">Carregando...</p></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Bookings tab -->
+    <div id="tab-bookings" style="display:none">
       <div class="card">
-        <div class="card-header">Todas as Reservas</div>
+        <div class="card-header">
+          Todas as Reservas
+          <div style="display:flex;gap:.5rem;align-items:center;flex-wrap:wrap;">
+            <input type="date" id="export-from" title="De" style="padding:.3rem .5rem;border:1px solid var(--border);border-radius:var(--radius);font-size:.8125rem;" />
+            <span style="color:var(--text-muted);font-size:.8rem">até</span>
+            <input type="date" id="export-to" title="Até" style="padding:.3rem .5rem;border:1px solid var(--border);border-radius:var(--radius);font-size:.8125rem;" />
+            <button class="btn btn-ghost btn-sm" onclick="exportCSV()">Exportar CSV</button>
+          </div>
+        </div>
         <div class="table-wrap">
           <table>
             <thead>
