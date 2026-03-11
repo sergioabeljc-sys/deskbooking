@@ -21,6 +21,8 @@ async function loadDashboard() {
   const chartByDay = document.getElementById("chart-by-day");
 
   cardsEl.innerHTML = '<p class="empty-state">Carregando...</p>';
+  chartByDesk.innerHTML = '<p class="empty-state">Carregando...</p>';
+  chartByDay.innerHTML = '<p class="empty-state">Carregando...</p>';
 
   try {
     const stats = await API.get("/bookings/stats");
@@ -89,7 +91,10 @@ async function loadDashboard() {
         .join("");
     }
   } catch (err) {
-    cardsEl.innerHTML = `<p class="empty-state">${err.message}</p>`;
+    const msg = `<p class="empty-state">${escapeHtml(err.message)}</p>`;
+    cardsEl.innerHTML = msg;
+    chartByDesk.innerHTML = msg;
+    chartByDay.innerHTML = msg;
   }
 }
 
