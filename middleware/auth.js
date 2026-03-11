@@ -10,7 +10,11 @@ function authMiddleware(req, res, next) {
   const header = req.headers.authorization;
   if (!header) return res.status(401).json({ error: "Token não fornecido" });
 
-  const token = header.split(" ")[1];
+  const parts = header.split(" ");
+  if (parts.length !== 2 || parts[0] !== "Bearer" || !parts[1]) {
+    return res.status(401).json({ error: "Token malformado" });
+  }
+  const token = parts[1];
   try {
     req.user = jwt.verify(token, SECRET);
     next();

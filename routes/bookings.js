@@ -98,6 +98,9 @@ router.get("/stats", authMiddleware, adminMiddleware, (req, res) => {
 router.get("/", authMiddleware, (req, res) => {
   const { date } = req.query;
   if (!date) return res.status(400).json({ error: "Data obrigatória" });
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(date)) {
+    return res.status(400).json({ error: "Formato de data inválido. Use YYYY-MM-DD" });
+  }
 
   const bookings = db.prepare(`
     SELECT b.id, b.user_id, b.desk_id, b.date,
@@ -123,18 +126,26 @@ router.get("/mine", authMiddleware, (req, res) => {
   res.json(bookings);
 });
 
-// Todas as reservas (admin)
+// Todas as reservas (admin) — com paginação
 router.get("/all", authMiddleware, adminMiddleware, (req, res) => {
-  const bookings = db.prepare(`
+  const page = Math.max(1, parseInt(req.query.page, 10) || 1);
+  const limit = Math.min(200, Math.max(1, parseInt(req.query.limit, 10) || 50));
+  const offset = (page - 1) * limit;
+
+  const total = db.prepare("SELECT COUNT(*) AS cnt FROM bookings").get().cnt;
+  const pages = Math.ceil(total / limit);
+
+  const data = db.prepare(`
     SELECT b.id, b.user_id, b.desk_id, b.date, b.created_at,
            u.name AS user_name, d.name AS desk_name
     FROM bookings b
     JOIN users u ON b.user_id = u.id
     JOIN desks d ON b.desk_id = d.id
     ORDER BY b.date DESC, b.created_at DESC
-    LIMIT 200
-  `).all();
-  res.json(bookings);
+    LIMIT ? OFFSET ?
+  `).all(limit, offset);
+
+  res.json({ data, total, page, pages });
 });
 
 // Criar reserva
@@ -142,10 +153,23 @@ router.post("/", authMiddleware, async (req, res) => {
   const { desk_id, date } = req.body;
   if (!desk_id || !date) return res.status(400).json({ error: "Mesa e data são obrigatórios" });
 
+  const deskIdInt = parseInt(desk_id, 10);
+  if (!deskIdInt || deskIdInt <= 0) {
+    return res.status(400).json({ error: "Mesa inválida" });
+  }
+
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(date)) {
+    return res.status(400).json({ error: "Formato de data inválido. Use YYYY-MM-DD" });
+  }
+  const dateObj = new Date(date);
+  if (isNaN(dateObj.getTime())) {
+    return res.status(400).json({ error: "Data inválida" });
+  }
+
   const today = new Date().toISOString().split("T")[0];
   if (date < today) return res.status(400).json({ error: "Não é possível reservar para datas passadas" });
 
-  const desk = db.prepare("SELECT * FROM desks WHERE id = ? AND is_active = 1").get(desk_id);
+  const desk = db.prepare("SELECT * FROM desks WHERE id = ? AND is_active = 1").get(deskIdInt);
   if (!desk) return res.status(404).json({ error: "Mesa não encontrada ou inativa" });
 
   // Verifica se usuário já tem reserva nesta data
@@ -155,7 +179,7 @@ router.post("/", authMiddleware, async (req, res) => {
   try {
     const result = db
       .prepare("INSERT INTO bookings (user_id, desk_id, date) VALUES (?, ?, ?)")
-      .run(req.user.id, desk_id, date);
+      .run(req.user.id, deskIdInt, date);
 
     const booking = db.prepare(`
       SELECT b.id, b.user_id, b.desk_id, b.date,
@@ -176,8 +200,15 @@ router.post("/", authMiddleware, async (req, res) => {
 
     res.json(booking);
   } catch (e) {
-    if (e.message.includes("UNIQUE"))
+    if (e.message.includes("UNIQUE") && e.message.includes("desk_id")) {
       return res.status(409).json({ error: "Mesa já reservada nesta data" });
+    }
+    if (e.message.includes("UNIQUE") && e.message.includes("user_id")) {
+      return res.status(409).json({ error: "Você já tem uma reserva nesta data" });
+    }
+    if (e.message.includes("UNIQUE")) {
+      return res.status(409).json({ error: "Conflito de reserva" });
+    }
     res.status(500).json({ error: "Erro interno" });
   }
 });

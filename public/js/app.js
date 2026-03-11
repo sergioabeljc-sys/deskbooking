@@ -48,7 +48,7 @@ function getInitials(name) {
 function renderAvatar(name, size = 28) {
   const hue = nameToHue(name);
   const initials = getInitials(name);
-  return `<span class="desk-avatar" style="--avatar-hue:${hue};width:${size}px;height:${size}px;font-size:${Math.round(size * 0.38)}px" title="${name}">${initials}</span>`;
+  return `<span class="desk-avatar" style="--avatar-hue:${hue};width:${size}px;height:${size}px;font-size:${Math.round(size * 0.38)}px" title="${escapeHtml(name)}">${escapeHtml(initials)}</span>`;
 }
 
 // ─── Day view ─────────────────────────────────────────────────────────────────
@@ -91,8 +91,8 @@ async function loadDesks() {
 
       cell.innerHTML = `
         ${avatarHtml}
-        <span>${desk.name}</span>
-        ${booking ? `<span class="desk-bookedby">${isMine ? "Você" : booking.user_name}</span>` : ""}
+        <span>${escapeHtml(desk.name)}</span>
+        ${booking ? `<span class="desk-bookedby">${isMine ? "Você" : escapeHtml(booking.user_name)}</span>` : ""}
       `;
 
       if (!isBooked && !isInactive && !isMine) {
@@ -209,7 +209,7 @@ async function loadWeekView() {
     // Rows per desk
     desks.forEach((desk) => {
       html += '<div class="week-desk-row">';
-      html += `<div class="week-desk-name">${desk.name}</div>`;
+      html += `<div class="week-desk-name">${escapeHtml(desk.name)}</div>`;
 
       days.forEach((d, i) => {
         const iso = toISO(d);
@@ -227,12 +227,12 @@ async function loadWeekView() {
         else cls += "available";
 
         const clickable = !isBooked && !isInactive && !isMine && !isPast;
-        const onclick = clickable ? `weekBookDesk(${desk.id},'${desk.name}','${iso}')` : "";
+        const onclick = clickable ? `weekBookDesk(${desk.id},'${desk.name.replace(/'/g, "\\'")}','${iso}')` : "";
 
         let inner = "";
         if (isInactive) inner = '<span class="week-cell-icon">🚫</span>';
         else if (isMine) inner = renderAvatar(user.name, 22) + `<span class="week-cell-label">Você</span>`;
-        else if (isBooked) inner = renderAvatar(booking.user_name, 22) + `<span class="week-cell-label">${booking.user_name.split(" ")[0]}</span>`;
+        else if (isBooked) inner = renderAvatar(booking.user_name, 22) + `<span class="week-cell-label">${escapeHtml(booking.user_name.split(" ")[0])}</span>`;
         else if (!isPast) inner = '<span class="week-cell-icon" style="opacity:.4">🪑</span>';
 
         html += `<div class="${cls}"${clickable ? ` onclick="${onclick}" style="cursor:pointer"` : ""}>${inner}</div>`;
@@ -273,7 +273,7 @@ async function loadMyBookings() {
         (b) => `
       <li class="booking-item">
         <div class="booking-info">
-          <strong>${b.desk_name}</strong>
+          <strong>${escapeHtml(b.desk_name)}</strong>
           <span>${formatDate(b.date)}</span>
         </div>
         <button class="btn btn-danger btn-sm" onclick="cancelBooking(${b.id})">Cancelar</button>

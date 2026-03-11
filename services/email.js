@@ -3,6 +3,10 @@ const nodemailer = require("nodemailer");
 const configured =
   process.env.SMTP_HOST && process.env.SMTP_USER && process.env.SMTP_PASS;
 
+if (!configured && process.env.NODE_ENV !== "test") {
+  console.warn("[email] SMTP não configurado — e-mails desativados. Defina SMTP_HOST, SMTP_USER e SMTP_PASS no .env");
+}
+
 let transporter = null;
 if (configured) {
   transporter = nodemailer.createTransport({

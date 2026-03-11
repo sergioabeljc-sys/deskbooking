@@ -11,6 +11,10 @@ router.post("/register", (req, res) => {
     return res.status(400).json({ error: "Nome, e-mail e senha são obrigatórios" });
   if (password.length < 6)
     return res.status(400).json({ error: "Senha deve ter ao menos 6 caracteres" });
+  const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+  if (!emailRegex.test(email.trim())) {
+    return res.status(400).json({ error: "Formato de e-mail inválido" });
+  }
 
   // Primeiro usuário registrado vira admin
   const { count } = db.prepare("SELECT COUNT(*) as count FROM users").get();
@@ -26,7 +30,7 @@ router.post("/register", (req, res) => {
       .prepare("SELECT id, name, email, is_admin FROM users WHERE id = ?")
       .get(result.lastInsertRowid);
 
-    const token = jwt.sign(user, SECRET, { expiresIn: "7d" });
+    const token = jwt.sign(user, SECRET, { expiresIn: "8h" });
     res.json({ token, user });
   } catch (e) {
     if (e.message.includes("UNIQUE"))
@@ -48,7 +52,7 @@ router.post("/login", (req, res) => {
     return res.status(401).json({ error: "E-mail ou senha incorretos" });
 
   const user = { id: row.id, name: row.name, email: row.email, is_admin: row.is_admin };
-  const token = jwt.sign(user, SECRET, { expiresIn: "7d" });
+  const token = jwt.sign(user, SECRET, { expiresIn: "8h" });
   res.json({ token, user });
 });
 
@@ -71,6 +75,14 @@ router.put("/profile", authMiddleware, (req, res) => {
     .prepare("SELECT id, name, email, is_admin, password_hash FROM users WHERE id = ?")
     .get(req.user.id);
   if (!current) return res.status(404).json({ error: "Usuário não encontrado" });
+
+  // Validate email format
+  if (email) {
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(email.trim())) {
+      return res.status(400).json({ error: "Formato de e-mail inválido" });
+    }
+  }
 
   // Validate email uniqueness
   if (email && email.trim().toLowerCase() !== current.email) {
@@ -103,7 +115,7 @@ router.put("/profile", authMiddleware, (req, res) => {
       .prepare("SELECT id, name, email, is_admin FROM users WHERE id = ?")
       .get(current.id);
 
-    const token = jwt.sign(updated, SECRET, { expiresIn: "7d" });
+    const token = jwt.sign(updated, SECRET, { expiresIn: "8h" });
     res.json({ token, user: updated });
   } catch (e) {
     if (e.message.includes("UNIQUE"))

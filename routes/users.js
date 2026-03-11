@@ -13,7 +13,7 @@ router.get("/", authMiddleware, adminMiddleware, (req, res) => {
 
 // Alternar admin (admin)
 router.put("/:id/toggle-admin", authMiddleware, adminMiddleware, (req, res) => {
-  if (req.params.id == req.user.id)
+  if (parseInt(req.params.id, 10) === req.user.id)
     return res.status(400).json({ error: "Você não pode alterar seu próprio status de admin" });
 
   const user = db.prepare("SELECT * FROM users WHERE id = ?").get(req.params.id);
@@ -28,7 +28,7 @@ router.put("/:id/toggle-admin", authMiddleware, adminMiddleware, (req, res) => {
 
 // Remover usuário (admin)
 router.delete("/:id", authMiddleware, adminMiddleware, (req, res) => {
-  if (req.params.id == req.user.id)
+  if (parseInt(req.params.id, 10) === req.user.id)
     return res.status(400).json({ error: "Você não pode excluir sua própria conta" });
 
   db.prepare("DELETE FROM users WHERE id = ?").run(req.params.id);

@@ -1,6 +1,12 @@
 const API = {
   getToken: () => localStorage.getItem("token"),
-  getUser: () => JSON.parse(localStorage.getItem("user") || "null"),
+  getUser: () => {
+    try {
+      return JSON.parse(localStorage.getItem("user") || "null");
+    } catch {
+      return null;
+    }
+  },
 
   setSession(token, user) {
     localStorage.setItem("token", token);
@@ -48,6 +54,16 @@ function requireAuth(adminOnly = false) {
 function logout() {
   API.clearSession();
   window.location.href = "/";
+}
+
+function escapeHtml(str) {
+  if (!str) return "";
+  return String(str)
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#39;");
 }
 
 function formatDate(dateStr) {

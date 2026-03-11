@@ -114,7 +114,10 @@ describe("Bookings", () => {
         .get("/api/bookings/all")
         .set("Authorization", `Bearer ${adminToken}`);
       expect(res.status).toBe(200);
-      expect(Array.isArray(res.body)).toBe(true);
+      expect(Array.isArray(res.body.data)).toBe(true);
+      expect(typeof res.body.total).toBe("number");
+      expect(typeof res.body.page).toBe("number");
+      expect(typeof res.body.pages).toBe("number");
     });
 
     it("usuario comum nao acessa", async () => {

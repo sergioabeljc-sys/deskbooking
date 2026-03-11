@@ -94,26 +94,45 @@ async function loadDashboard() {
 }
 
 // ─── Bookings ─────────────────────────────────────────────────────────────────
-async function loadBookings() {
+let bookingsPage = 1;
+
+async function loadBookings(page) {
+  if (page !== undefined) bookingsPage = page;
   const tbody = document.getElementById("bookings-body");
   try {
-    const bookings = await API.get("/bookings/all");
+    const result = await API.get(`/bookings/all?page=${bookingsPage}&limit=50`);
+    const bookings = result.data;
     if (bookings.length === 0) {
       tbody.innerHTML = '<tr><td colspan="4" class="empty-state">Nenhuma reserva</td></tr>';
-      return;
+    } else {
+      tbody.innerHTML = bookings
+        .map(
+          (b) => `
+        <tr>
+          <td>${formatDate(b.date)}</td>
+          <td>${escapeHtml(b.desk_name)}</td>
+          <td>${escapeHtml(b.user_name)}</td>
+          <td><button class="btn btn-danger btn-sm" onclick="cancelBooking(${b.id})">Cancelar</button></td>
+        </tr>
+      `
+        )
+        .join("");
     }
-    tbody.innerHTML = bookings
-      .map(
-        (b) => `
-      <tr>
-        <td>${formatDate(b.date)}</td>
-        <td>${b.desk_name}</td>
-        <td>${b.user_name}</td>
-        <td><button class="btn btn-danger btn-sm" onclick="cancelBooking(${b.id})">Cancelar</button></td>
-      </tr>
-    `
-      )
-      .join("");
+
+    // Pagination controls
+    const paginationId = "bookings-pagination";
+    let paginationEl = document.getElementById(paginationId);
+    if (!paginationEl) {
+      paginationEl = document.createElement("div");
+      paginationEl.id = paginationId;
+      paginationEl.style.cssText = "display:flex;gap:.5rem;align-items:center;margin-top:.75rem;";
+      tbody.closest("table").insertAdjacentElement("afterend", paginationEl);
+    }
+    paginationEl.innerHTML = `
+      <span style="color:var(--text-muted);font-size:.875rem">Total: ${result.total} reservas | Página ${result.page} de ${result.pages}</span>
+      <button class="btn btn-ghost btn-sm" onclick="loadBookings(${bookingsPage - 1})" ${bookingsPage <= 1 ? "disabled" : ""}>Anterior</button>
+      <button class="btn btn-ghost btn-sm" onclick="loadBookings(${bookingsPage + 1})" ${bookingsPage >= result.pages ? "disabled" : ""}>Próximo</button>
+    `;
   } catch (err) {
     tbody.innerHTML = `<tr><td colspan="4" class="empty-state">${err.message}</td></tr>`;
   }
@@ -173,7 +192,7 @@ async function loadDesks() {
       .map(
         (d) => `
       <tr>
-        <td>${d.name}</td>
+        <td>${escapeHtml(d.name)}</td>
         <td>Col ${d.pos_x}, Lin ${d.pos_y}</td>
         <td>
           <span class="badge ${d.is_active ? "badge-success" : "badge-gray"}">
@@ -253,8 +272,8 @@ async function loadUsers() {
       .map(
         (u) => `
       <tr>
-        <td>${u.name}</td>
-        <td>${u.email}</td>
+        <td>${escapeHtml(u.name)}</td>
+        <td>${escapeHtml(u.email)}</td>
         <td>
           <span class="badge ${u.is_admin ? "badge-blue" : "badge-gray"}">
             ${u.is_admin ? "Admin" : "Usuário"}

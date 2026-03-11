@@ -15,6 +15,13 @@ router.post("/", authMiddleware, adminMiddleware, (req, res) => {
   if (!name || pos_x == null || pos_y == null)
     return res.status(400).json({ error: "Nome e posição são obrigatórios" });
 
+  if (pos_x != null && (pos_x < 1 || pos_x > 50 || !Number.isInteger(Number(pos_x)))) {
+    return res.status(400).json({ error: "Posição X deve ser um inteiro entre 1 e 50" });
+  }
+  if (pos_y != null && (pos_y < 1 || pos_y > 50 || !Number.isInteger(Number(pos_y)))) {
+    return res.status(400).json({ error: "Posição Y deve ser um inteiro entre 1 e 50" });
+  }
+
   const exists = db.prepare("SELECT id FROM desks WHERE pos_x = ? AND pos_y = ?").get(pos_x, pos_y);
   if (exists) return res.status(409).json({ error: "Já existe uma mesa nessa posição" });
 
@@ -29,6 +36,13 @@ router.put("/:id", authMiddleware, adminMiddleware, (req, res) => {
   const { name, pos_x, pos_y, is_active } = req.body;
   const desk = db.prepare("SELECT * FROM desks WHERE id = ?").get(req.params.id);
   if (!desk) return res.status(404).json({ error: "Mesa não encontrada" });
+
+  if (pos_x != null && (pos_x < 1 || pos_x > 50 || !Number.isInteger(Number(pos_x)))) {
+    return res.status(400).json({ error: "Posição X deve ser um inteiro entre 1 e 50" });
+  }
+  if (pos_y != null && (pos_y < 1 || pos_y > 50 || !Number.isInteger(Number(pos_y)))) {
+    return res.status(400).json({ error: "Posição Y deve ser um inteiro entre 1 e 50" });
+  }
 
   if ((pos_x != null || pos_y != null)) {
     const nx = pos_x ?? desk.pos_x;
