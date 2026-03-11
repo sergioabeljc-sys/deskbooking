@@ -9,16 +9,11 @@ const swaggerSpec = require("./swagger");
 
 const app = express();
 
-// Em produção, confia no proxy reverso (nginx/Caddy) para IP real e proto
+// Em produção, confia no proxy reverso (nginx/Caddy) para IP real e proto.
+// O redirect HTTP→HTTPS é feito pelo nginx/Caddy, não aqui,
+// pois redirecionar no Node.js gera respostas HTML que quebram chamadas de API JSON.
 if (process.env.NODE_ENV === "production") {
   app.set("trust proxy", 1);
-  // Redireciona HTTP → HTTPS
-  app.use((req, res, next) => {
-    if (req.headers["x-forwarded-proto"] !== "https") {
-      return res.redirect(301, `https://${req.headers.host}${req.url}`);
-    }
-    next();
-  });
 }
 
 // Security headers
@@ -139,7 +134,12 @@ app.use((err, req, res, next) => {
   res.status(500).json({ error: "Erro interno do servidor" });
 });
 
-// Fallback: serve index.html para rotas desconhecidas
+// Rotas de API não encontradas retornam JSON (nunca HTML)
+app.use("/api", (req, res) => {
+  res.status(404).json({ error: "Rota não encontrada" });
+});
+
+// Fallback SPA: serve index.html para rotas de frontend desconhecidas
 app.get("*", (req, res) => {
   res.sendFile(path.join(__dirname, "public", "index.html"));
 });

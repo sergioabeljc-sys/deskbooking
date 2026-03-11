@@ -39,6 +39,14 @@ const API = {
     }
   },
 
+  async _parseJSON(res) {
+    const ct = res.headers.get("content-type") || "";
+    if (!ct.includes("application/json")) {
+      throw new Error(`Servidor retornou resposta inesperada (HTTP ${res.status}). Verifique a configuração do servidor.`);
+    }
+    return res.json();
+  },
+
   async fetch(path, options = {}) {
     const res = await fetch(`/api${path}`, {
       ...options,
@@ -60,7 +68,7 @@ const API = {
             ...options.headers,
           },
         });
-        const retryData = await retry.json();
+        const retryData = await API._parseJSON(retry);
         if (!retry.ok) throw new Error(retryData.error || "Erro desconhecido");
         return retryData;
       } else {
@@ -70,7 +78,7 @@ const API = {
       }
     }
 
-    const data = await res.json();
+    const data = await API._parseJSON(res);
     if (!res.ok) throw new Error(data.error || "Erro desconhecido");
     return data;
   },
