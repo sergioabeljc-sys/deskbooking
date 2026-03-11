@@ -17,7 +17,7 @@ function issueTokens(user) {
 }
 
 router.post("/register", (req, res) => {
-  const { name, email, password } = req.body;
+  const { name, email, password, setupToken } = req.body;
   const nameErr = validateName(name);
   if (nameErr) return res.status(400).json({ error: nameErr });
   const emailErr = validateEmail(email);
@@ -25,8 +25,15 @@ router.post("/register", (req, res) => {
   const passErr = validatePassword(password);
   if (passErr) return res.status(400).json({ error: passErr });
 
-  // Primeiro usuário registrado vira admin
+  // Primeiro usuário vira admin — protegido por SETUP_TOKEN quando configurado
   const { count } = db.prepare("SELECT COUNT(*) as count FROM users").get();
+  const SETUP_TOKEN = process.env.SETUP_TOKEN;
+  if (count === 0 && SETUP_TOKEN && setupToken !== SETUP_TOKEN) {
+    return res.status(403).json({
+      error: "Token de configuração inválido. Informe o SETUP_TOKEN para criar o primeiro admin.",
+      needsSetupToken: true,
+    });
+  }
   const is_admin = count === 0 ? 1 : 0;
 
   const hash = bcrypt.hashSync(password, 10);

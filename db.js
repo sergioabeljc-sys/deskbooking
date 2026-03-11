@@ -7,6 +7,13 @@ const dbPath =
     : process.env.DB_PATH
     ? path.resolve(process.env.DB_PATH)
     : path.join(__dirname, "data.db");
+
+if (process.env.NODE_ENV === "production" && !process.env.DB_PATH) {
+  console.warn(
+    "⚠️  AVISO: DB_PATH não definido. Usando ./data.db no diretório da aplicação.\n" +
+    "   Em produção, aponte DB_PATH para um volume persistente para evitar perda de dados."
+  );
+}
 const db = new Database(dbPath);
 
 db.pragma("journal_mode = WAL");

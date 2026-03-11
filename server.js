@@ -9,6 +9,18 @@ const swaggerSpec = require("./swagger");
 
 const app = express();
 
+// Em produção, confia no proxy reverso (nginx/Caddy) para IP real e proto
+if (process.env.NODE_ENV === "production") {
+  app.set("trust proxy", 1);
+  // Redireciona HTTP → HTTPS
+  app.use((req, res, next) => {
+    if (req.headers["x-forwarded-proto"] !== "https") {
+      return res.redirect(301, `https://${req.headers.host}${req.url}`);
+    }
+    next();
+  });
+}
+
 // Security headers
 app.use(
   helmet({

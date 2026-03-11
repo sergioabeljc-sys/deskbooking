@@ -1,0 +1,6 @@
+# Caddyfile — TLS automático via Let's Encrypt (recomendado para simplicidade)
+# Substitua "desk.empresa.com" pelo seu domínio real.
+
+desk.empresa.com {
+    reverse_proxy localhost:3000
+}

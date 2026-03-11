@@ -6,6 +6,7 @@ let isLogin = true;
 
 const form = document.getElementById("auth-form");
 const nameGroup = document.getElementById("name-group");
+const setupTokenGroup = document.getElementById("setup-token-group");
 const nameInput = document.getElementById("name");
 const formTitle = document.getElementById("form-title");
 const formSubtitle = document.getElementById("form-subtitle");
@@ -16,6 +17,7 @@ const toggleLink = document.getElementById("toggle-link");
 toggleLink.addEventListener("click", () => {
   isLogin = !isLogin;
   nameGroup.style.display = isLogin ? "none" : "";
+  setupTokenGroup.style.display = "none"; // apenas exibido se servidor exigir
   formTitle.textContent = isLogin ? "Entrar" : "Criar conta";
   formSubtitle.textContent = isLogin
     ? "Reserve sua mesa de trabalho"
@@ -38,11 +40,16 @@ form.addEventListener("submit", async (e) => {
     } else {
       const name = nameInput.value.trim();
       if (!name) { showToast("Informe seu nome", "error"); return; }
-      data = await API.post("/auth/register", { name, email, password });
+      const setupToken = document.getElementById("setup-token").value;
+      data = await API.post("/auth/register", { name, email, password, setupToken });
     }
     API.setSession(data.token, data.user, data.refreshToken);
     window.location.href = "/app.html";
   } catch (err) {
+    // Se o servidor exigir SETUP_TOKEN, exibe o campo
+    if (err.message && err.message.includes("Token de configuração")) {
+      setupTokenGroup.style.display = "";
+    }
     showToast(err.message, "error");
   } finally {
     submitBtn.disabled = false;
