@@ -85,7 +85,23 @@ app.use(
   })
 );
 
-app.use(express.json());
+// Rate limit para endpoints admin intensivos (export, listagem de usuários)
+const adminLimiter = rateLimit({
+  windowMs: 60 * 1000,
+  max: 60,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { error: "Muitas requisições. Tente novamente em instantes." },
+  skip: () => process.env.NODE_ENV === "test",
+});
+app.use("/api/bookings/export", adminLimiter);
+app.use("/api/users", adminLimiter);
+
+// CSRF: esta API usa JWT via Authorization header (Bearer), não cookies.
+// Navegadores bloqueiam headers customizados em requisições cross-origin,
+// portanto CSRF está mitigado arquiteturalmente pelo CORS + Bearer token.
+
+app.use(express.json({ limit: "50kb" }));
 app.use(express.static(path.join(__dirname, "public")));
 
 // Swagger docs
@@ -96,9 +112,18 @@ app.use("/api/desks", require("./routes/desks"));
 app.use("/api/bookings", require("./routes/bookings"));
 app.use("/api/users", require("./routes/users"));
 
-// Tratamento de erros nao capturados
+// Tratamento de erros — logs sanitizados (sem senhas ou tokens)
 app.use((err, req, res, next) => {
-  console.error(`[${new Date().toISOString()}] Erro nao tratado:`, err);
+  const safeBody = { ...req.body };
+  delete safeBody.password;
+  delete safeBody.confirmPassword;
+  delete safeBody.refreshToken;
+  console.error(`[${new Date().toISOString()}] Erro não tratado:`, {
+    method: req.method,
+    path: req.path,
+    body: safeBody,
+    message: err.message,
+  });
   res.status(500).json({ error: "Erro interno do servidor" });
 });
 

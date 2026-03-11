@@ -5,6 +5,7 @@ const jwt = require("jsonwebtoken");
 const crypto = require("crypto");
 const db = require("../db");
 const { SECRET, authMiddleware } = require("../middleware/auth");
+const { validateEmail, validateName, validatePassword } = require("../utils/validate");
 
 function issueTokens(user) {
   const token = jwt.sign(user, SECRET, { expiresIn: "1h" });
@@ -17,14 +18,12 @@ function issueTokens(user) {
 
 router.post("/register", (req, res) => {
   const { name, email, password } = req.body;
-  if (!name || !email || !password)
-    return res.status(400).json({ error: "Nome, e-mail e senha são obrigatórios" });
-  if (password.length < 6)
-    return res.status(400).json({ error: "Senha deve ter ao menos 6 caracteres" });
-  const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-  if (!emailRegex.test(email.trim())) {
-    return res.status(400).json({ error: "Formato de e-mail inválido" });
-  }
+  const nameErr = validateName(name);
+  if (nameErr) return res.status(400).json({ error: nameErr });
+  const emailErr = validateEmail(email);
+  if (emailErr) return res.status(400).json({ error: emailErr });
+  const passErr = validatePassword(password);
+  if (passErr) return res.status(400).json({ error: passErr });
 
   // Primeiro usuário registrado vira admin
   const { count } = db.prepare("SELECT COUNT(*) as count FROM users").get();
@@ -53,6 +52,9 @@ router.post("/login", (req, res) => {
   const { email, password } = req.body;
   if (!email || !password)
     return res.status(400).json({ error: "E-mail e senha são obrigatórios" });
+  // Rejeita entradas claramente inválidas sem consultar o banco
+  if (typeof email !== "string" || email.length > 254) return res.status(400).json({ error: "E-mail inválido" });
+  if (typeof password !== "string" || password.length > 128) return res.status(400).json({ error: "Senha inválida" });
 
   const row = db
     .prepare("SELECT * FROM users WHERE email = ?")
@@ -86,12 +88,14 @@ router.put("/profile", authMiddleware, (req, res) => {
     .get(req.user.id);
   if (!current) return res.status(404).json({ error: "Usuário não encontrado" });
 
-  // Validate email format
+  // Validate name and email
+  if (name) {
+    const nameErr = validateName(name);
+    if (nameErr) return res.status(400).json({ error: nameErr });
+  }
   if (email) {
-    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-    if (!emailRegex.test(email.trim())) {
-      return res.status(400).json({ error: "Formato de e-mail inválido" });
-    }
+    const emailErr = validateEmail(email);
+    if (emailErr) return res.status(400).json({ error: emailErr });
   }
 
   // Validate email uniqueness
@@ -104,8 +108,8 @@ router.put("/profile", authMiddleware, (req, res) => {
 
   // Validate password
   if (password !== undefined && password !== "") {
-    if (password.length < 6)
-      return res.status(400).json({ error: "Senha deve ter ao menos 6 caracteres" });
+    const passErr = validatePassword(password);
+    if (passErr) return res.status(400).json({ error: passErr });
     if (password !== confirmPassword)
       return res.status(400).json({ error: "Senhas não conferem" });
   }

@@ -2,6 +2,7 @@ const express = require("express");
 const router = express.Router();
 const db = require("../db");
 const { authMiddleware, adminMiddleware } = require("../middleware/auth");
+const { validateName, validatePosInt } = require("../utils/validate");
 
 // Listar todas as mesas
 router.get("/", authMiddleware, (req, res) => {
@@ -12,15 +13,15 @@ router.get("/", authMiddleware, (req, res) => {
 // Criar mesa (admin)
 router.post("/", authMiddleware, adminMiddleware, (req, res) => {
   const { name, pos_x, pos_y } = req.body;
-  if (!name || pos_x == null || pos_y == null)
-    return res.status(400).json({ error: "Nome e posição são obrigatórios" });
+  const nameErr = validateName(name, "Nome da mesa");
+  if (nameErr) return res.status(400).json({ error: nameErr });
+  if (pos_x == null || pos_y == null)
+    return res.status(400).json({ error: "Posição é obrigatória" });
 
-  if (pos_x != null && (pos_x < 1 || pos_x > 50 || !Number.isInteger(Number(pos_x)))) {
-    return res.status(400).json({ error: "Posição X deve ser um inteiro entre 1 e 50" });
-  }
-  if (pos_y != null && (pos_y < 1 || pos_y > 50 || !Number.isInteger(Number(pos_y)))) {
-    return res.status(400).json({ error: "Posição Y deve ser um inteiro entre 1 e 50" });
-  }
+  const xErr = validatePosInt(pos_x, "Posição X");
+  if (xErr) return res.status(400).json({ error: xErr });
+  const yErr = validatePosInt(pos_y, "Posição Y");
+  if (yErr) return res.status(400).json({ error: yErr });
 
   const exists = db.prepare("SELECT id FROM desks WHERE pos_x = ? AND pos_y = ?").get(pos_x, pos_y);
   if (exists) return res.status(409).json({ error: "Já existe uma mesa nessa posição" });
@@ -37,11 +38,20 @@ router.put("/:id", authMiddleware, adminMiddleware, (req, res) => {
   const desk = db.prepare("SELECT * FROM desks WHERE id = ?").get(req.params.id);
   if (!desk) return res.status(404).json({ error: "Mesa não encontrada" });
 
-  if (pos_x != null && (pos_x < 1 || pos_x > 50 || !Number.isInteger(Number(pos_x)))) {
-    return res.status(400).json({ error: "Posição X deve ser um inteiro entre 1 e 50" });
+  if (name !== undefined) {
+    const nameErr = validateName(name, "Nome da mesa");
+    if (nameErr) return res.status(400).json({ error: nameErr });
   }
-  if (pos_y != null && (pos_y < 1 || pos_y > 50 || !Number.isInteger(Number(pos_y)))) {
-    return res.status(400).json({ error: "Posição Y deve ser um inteiro entre 1 e 50" });
+  if (pos_x != null) {
+    const xErr = validatePosInt(pos_x, "Posição X");
+    if (xErr) return res.status(400).json({ error: xErr });
+  }
+  if (pos_y != null) {
+    const yErr = validatePosInt(pos_y, "Posição Y");
+    if (yErr) return res.status(400).json({ error: yErr });
+  }
+  if (is_active !== undefined && is_active !== null && ![0, 1].includes(Number(is_active))) {
+    return res.status(400).json({ error: "is_active deve ser 0 ou 1" });
   }
 
   if ((pos_x != null || pos_y != null)) {
