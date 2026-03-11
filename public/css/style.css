@@ -24,15 +24,67 @@ body {
 .auth-container {
   min-height: 100vh;
   display: flex;
+  flex-direction: column;
   align-items: center;
   justify-content: center;
-  padding: 1rem;
+  padding: 2rem 1rem;
+  gap: 1.5rem;
+  background-image: url("https://spcorporate.com.br/uploads/properties/2023/11/brasilia-square-offices.jpg");
+  background-size: cover;
+  background-position: center top;
+  background-repeat: no-repeat;
+}
+
+.auth-container::before {
+  content: "";
+  position: fixed;
+  inset: 0;
+  background: rgba(10, 18, 35, 0.60);
+  backdrop-filter: blur(1px);
+  z-index: 0;
+}
+
+/* Logos above login card */
+.auth-logos {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 2rem;
+  flex-wrap: wrap;
+}
+
+.auth-logo-item {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(255, 255, 255, 0.92);
+  border-radius: 12px;
+  padding: .75rem 1.5rem;
+  box-shadow: 0 4px 20px rgba(0,0,0,.25);
+}
+
+.auth-logo-item img {
+  height: 48px;
+  width: auto;
+  display: block;
+  object-fit: contain;
+}
+
+.auth-logo-divider {
+  width: 1px;
+  height: 40px;
+  background: rgba(255,255,255,0.3);
+  flex-shrink: 0;
 }
 
 .auth-card {
+  position: relative;
+  z-index: 1;
   background: var(--surface);
   border-radius: var(--radius);
-  box-shadow: 0 1px 3px rgba(0,0,0,.1), 0 4px 16px rgba(0,0,0,.08);
+  box-shadow: 0 8px 32px rgba(0,0,0,.35);
   padding: 2rem;
   width: 100%;
   max-width: 400px;
