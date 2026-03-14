@@ -29,7 +29,7 @@ body {
   justify-content: center;
   padding: 2rem 1rem;
   gap: 1.5rem;
-  background-image: url("https://spcorporate.com.br/uploads/properties/2023/11/brasilia-square-offices.jpg");
+  background-image: url("/img/bg-login.jpg");
   background-size: cover;
   background-position: center top;
   background-repeat: no-repeat;

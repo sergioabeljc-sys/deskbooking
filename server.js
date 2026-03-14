@@ -28,13 +28,11 @@ app.use(
         imgSrc: [
           "'self'",
           "data:",
-          "https://cdn.worldvectorlogo.com",
-          "https://cdn.prod.website-files.com",
-          "https://www.spcorporate.com.br",
         ],
         connectSrc: ["'self'"],
         fontSrc: ["'self'"],
         frameSrc: ["'none'"],
+        scriptSrcAttr: ["'unsafe-inline'"],
       },
     },
   })
