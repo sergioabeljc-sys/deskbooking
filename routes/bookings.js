@@ -180,6 +180,9 @@ router.post("/", authMiddleware, async (req, res) => {
   const today = new Date().toISOString().split("T")[0];
   if (date < today) return res.status(400).json({ error: "Não é possível reservar para datas passadas" });
 
+  const dow = new Date(date + "T12:00:00Z").getUTCDay();
+  if (dow === 0 || dow === 6) return res.status(400).json({ error: "Não é permitido reservar para fins de semana" });
+
   const desk = db.prepare("SELECT * FROM desks WHERE id = ? AND is_active = 1").get(deskIdInt);
   if (!desk) return res.status(404).json({ error: "Mesa não encontrada ou inativa" });
 
@@ -279,6 +282,72 @@ router.delete("/:id", authMiddleware, async (req, res) => {
   }
 
   res.json({ ok: true });
+});
+
+// Admin: criar reserva em nome de outro usuário
+router.post("/admin", authMiddleware, adminMiddleware, async (req, res) => {
+  const { user_id, desk_id, date } = req.body;
+  if (!user_id || !desk_id || !date) return res.status(400).json({ error: "user_id, desk_id e date são obrigatórios" });
+
+  const deskIdInt = parseInt(desk_id, 10);
+  if (!deskIdInt || deskIdInt <= 0) return res.status(400).json({ error: "Mesa inválida" });
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(date)) return res.status(400).json({ error: "Data inválida" });
+
+  const dow = new Date(date + "T12:00:00Z").getUTCDay();
+  if (dow === 0 || dow === 6) return res.status(400).json({ error: "Fins de semana não permitidos" });
+
+  const today = new Date().toISOString().split("T")[0];
+  if (date < today) return res.status(400).json({ error: "Não é possível reservar para datas passadas" });
+
+  const desk = db.prepare("SELECT * FROM desks WHERE id = ? AND is_active = 1").get(deskIdInt);
+  if (!desk) return res.status(404).json({ error: "Mesa não encontrada ou inativa" });
+
+  const targetUser = db.prepare("SELECT id, name, email FROM users WHERE id = ?").get(user_id);
+  if (!targetUser) return res.status(404).json({ error: "Usuário não encontrado" });
+
+  const existing = db.prepare("SELECT id FROM bookings WHERE user_id = ? AND date = ?").get(user_id, date);
+  if (existing) return res.status(409).json({ error: "Usuário já tem reserva nesta data" });
+
+  const deskTaken = db.prepare("SELECT id FROM bookings WHERE desk_id = ? AND date = ?").get(deskIdInt, date);
+  if (deskTaken) return res.status(409).json({ error: "Mesa já reservada nesta data" });
+
+  // Respeita limite semanal de 3 reservas
+  const ref = new Date(date + "T12:00:00Z");
+  const diffToMon = ref.getUTCDay() === 0 ? -6 : 1 - ref.getUTCDay();
+  const weekStart = new Date(ref);
+  weekStart.setUTCDate(ref.getUTCDate() + diffToMon);
+  const weekEnd = new Date(weekStart);
+  weekEnd.setUTCDate(weekStart.getUTCDate() + 4);
+  const weeklyCount = db.prepare(
+    "SELECT COUNT(*) as cnt FROM bookings WHERE user_id = ? AND date >= ? AND date <= ?"
+  ).get(user_id, weekStart.toISOString().split("T")[0], weekEnd.toISOString().split("T")[0]).cnt;
+  if (weeklyCount >= 3) return res.status(409).json({ error: "Limite de 3 reservas por semana atingido para este usuário" });
+
+  try {
+    const result = db.prepare("INSERT INTO bookings (user_id, desk_id, date) VALUES (?, ?, ?)").run(user_id, deskIdInt, date);
+    const booking = db.prepare(`
+      SELECT b.id, b.user_id, b.desk_id, b.date,
+             u.name AS user_name, u.email AS user_email, d.name AS desk_name
+      FROM bookings b JOIN users u ON b.user_id = u.id JOIN desks d ON b.desk_id = d.id
+      WHERE b.id = ?
+    `).get(result.lastInsertRowid);
+
+    sendBookingConfirmation({ to: booking.user_email, name: booking.user_name, deskName: booking.desk_name, date: booking.date });
+
+    // Marca SP na programação TI se o usuário for TI
+    const userRow = db.prepare("SELECT is_ti FROM users WHERE id = ?").get(user_id);
+    if (userRow?.is_ti) {
+      db.prepare(`
+        INSERT INTO ti_schedules (user_id, date, location) VALUES (?, ?, 'sp')
+        ON CONFLICT(user_id, date) DO UPDATE SET location = 'sp'
+      `).run(user_id, date);
+    }
+
+    res.json(booking);
+  } catch (e) {
+    if (e.message.includes("UNIQUE")) return res.status(409).json({ error: "Conflito de reserva" });
+    res.status(500).json({ error: "Erro interno" });
+  }
 });
 
 module.exports = router;

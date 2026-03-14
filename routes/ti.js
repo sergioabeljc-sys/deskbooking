@@ -100,6 +100,9 @@ router.post("/schedule", authMiddleware, tiMiddleware, (req, res) => {
     return res.status(400).json({ error: "Localização inválida" });
   }
 
+  const dow = new Date(date + "T12:00:00Z").getUTCDay();
+  if (dow === 0 || dow === 6) return res.status(400).json({ error: "Não é permitido declarar programação para fins de semana" });
+
   // Limite de 2 home offices por semana
   if (location === "home") {
     const days = getWeekBounds(date);
@@ -144,6 +147,61 @@ router.delete("/schedule/:date", authMiddleware, tiMiddleware, (req, res) => {
 
   db.prepare("DELETE FROM ti_schedules WHERE user_id = ? AND date = ?").run(req.user.id, date);
   const bookingCancelled = cancelBookingForDate(req.user.id, date);
+  res.json({ ok: true, bookingCancelled });
+});
+
+// Admin: definir localização para qualquer membro TI
+router.post("/admin/schedule", authMiddleware, adminMiddleware, (req, res) => {
+  const { user_id, date, location } = req.body;
+  if (!user_id || !date || !/^\d{4}-\d{2}-\d{2}$/.test(date)) {
+    return res.status(400).json({ error: "user_id e data são obrigatórios" });
+  }
+  if (!["home", "sp", "itaqua"].includes(location)) {
+    return res.status(400).json({ error: "Localização inválida" });
+  }
+  const dow = new Date(date + "T12:00:00Z").getUTCDay();
+  if (dow === 0 || dow === 6) return res.status(400).json({ error: "Fins de semana não permitidos" });
+
+  const member = db.prepare("SELECT id FROM users WHERE id = ? AND is_ti = 1").get(user_id);
+  if (!member) return res.status(404).json({ error: "Membro TI não encontrado" });
+
+  // Limite home office para admin também respeita (2/semana)
+  if (location === "home") {
+    const days = getWeekBounds(date);
+    const existing = db.prepare("SELECT location FROM ti_schedules WHERE user_id = ? AND date = ?").get(user_id, date);
+    const homeCount = db.prepare(
+      "SELECT COUNT(*) as cnt FROM ti_schedules WHERE user_id = ? AND date >= ? AND date <= ? AND location = 'home'"
+    ).get(user_id, days[0], days[4]).cnt;
+    const effectiveCount = existing?.location === "home" ? homeCount - 1 : homeCount;
+    if (effectiveCount >= 2) {
+      return res.status(409).json({ error: "Limite de 2 dias de home office por semana atingido para este membro" });
+    }
+  }
+
+  db.prepare(`
+    INSERT INTO ti_schedules (user_id, date, location)
+    VALUES (?, ?, ?)
+    ON CONFLICT(user_id, date) DO UPDATE SET location = excluded.location
+  `).run(user_id, date, location);
+
+  let bookingCancelled = false;
+  if (location === "home" || location === "itaqua") {
+    bookingCancelled = cancelBookingForDate(user_id, date);
+  }
+
+  const hasBooking = location === "sp"
+    ? !!db.prepare("SELECT id FROM bookings WHERE user_id = ? AND date = ?").get(user_id, date)
+    : false;
+
+  res.json({ ok: true, date, location, bookingCancelled, hasBooking });
+});
+
+// Admin: remover localização de qualquer membro TI
+router.delete("/admin/schedule/:userId/:date", authMiddleware, adminMiddleware, (req, res) => {
+  const { userId, date } = req.params;
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(date)) return res.status(400).json({ error: "Data inválida" });
+  db.prepare("DELETE FROM ti_schedules WHERE user_id = ? AND date = ?").run(userId, date);
+  const bookingCancelled = cancelBookingForDate(parseInt(userId, 10), date);
   res.json({ ok: true, bookingCancelled });
 });
 

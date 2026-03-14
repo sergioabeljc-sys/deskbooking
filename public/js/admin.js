@@ -493,6 +493,9 @@ async function loadTiSchedule() {
   }
 }
 
+// Estado do picker TI admin
+let tiPickerUserId = null, tiPickerUserName = null, tiPickerDate = null, tiPickerCurrentLoc = null;
+
 function renderTiAdminGrid({ days, members }) {
   const today = new Date().toISOString().split("T")[0];
 
@@ -517,7 +520,7 @@ function renderTiAdminGrid({ days, members }) {
 
   members.forEach((member) => {
     html += '<tr>';
-    html += `<td style="padding:.625rem .75rem;border-bottom:1px solid var(--border);white-space:nowrap">${escapeHtml(member.name)}</td>`;
+    html += `<td style="padding:.625rem .75rem;border-bottom:1px solid var(--border);white-space:nowrap;font-weight:500">${escapeHtml(member.name)}</td>`;
     days.forEach((iso) => {
       const loc = member.schedule[iso];
       const isPast = iso < today;
@@ -526,14 +529,123 @@ function renderTiAdminGrid({ days, members }) {
             <span style="font-size:1.1rem">${TI_LOCATION[loc].icon}</span>
             <span style="font-size:.65rem;color:var(--text-muted)">${TI_LOCATION[loc].label}</span>
            </div>`
-        : `<span style="color:var(--border)">—</span>`;
-      html += `<td style="border-bottom:1px solid var(--border);padding:.375rem .25rem;text-align:center;opacity:${isPast && !loc ? ".4" : "1"}">${inner}</td>`;
+        : `<span style="color:var(--border);font-size:.9rem">—</span>`;
+      if (!isPast) {
+        html += `<td class="ti-admin-cell" data-uid="${member.id}" data-uname="${escapeHtml(member.name)}" data-date="${iso}" data-loc="${loc||""}"
+          style="border-bottom:1px solid var(--border);padding:.375rem .25rem;text-align:center;cursor:pointer;transition:background .12s"
+          title="Editar localização de ${escapeHtml(member.name)}">${inner}</td>`;
+      } else {
+        html += `<td style="border-bottom:1px solid var(--border);padding:.375rem .25rem;text-align:center;opacity:${!loc ? ".35" : ".65"}">${inner}</td>`;
+      }
     });
     html += '</tr>';
   });
 
   html += '</tbody></table>';
   document.getElementById("ti-admin-grid").innerHTML = html;
+
+  document.querySelectorAll(".ti-admin-cell").forEach((cell) => {
+    cell.addEventListener("mouseenter", () => { cell.style.background = "var(--bg)"; });
+    cell.addEventListener("mouseleave", () => { cell.style.background = ""; });
+    cell.addEventListener("click", () => {
+      openTiPicker(+cell.dataset.uid, cell.dataset.uname, cell.dataset.date, cell.dataset.loc || null);
+    });
+  });
+}
+
+function openTiPicker(userId, userName, date, currentLoc) {
+  tiPickerUserId = userId;
+  tiPickerUserName = userName;
+  tiPickerDate = date;
+  tiPickerCurrentLoc = currentLoc;
+  const [y, m, d] = date.split("-");
+  document.getElementById("ti-picker-title").textContent = `${userName} — ${d}/${m}/${y}`;
+  document.getElementById("ti-picker-clear").style.display = currentLoc ? "" : "none";
+  document.getElementById("ti-location-picker").style.display = "flex";
+}
+
+function closeTiPicker(e) {
+  if (e && e.target !== document.getElementById("ti-location-picker")) return;
+  document.getElementById("ti-location-picker").style.display = "none";
+}
+
+async function adminSetLocation(location) {
+  document.getElementById("ti-location-picker").style.display = "none";
+  try {
+    const result = await API.fetch(`/ti/admin/schedule`, {
+      method: "POST",
+      body: JSON.stringify({ user_id: tiPickerUserId, date: tiPickerDate, location }),
+    });
+    if (location === "sp" && !result.hasBooking) {
+      await openDeskPicker();
+    } else {
+      const msg = result.bookingCancelled ? " — reserva de mesa cancelada" : "";
+      showToast(`${TI_LOCATION[location].icon} ${TI_LOCATION[location].label} marcado para ${tiPickerUserName}${msg}`);
+      loadTiSchedule();
+    }
+  } catch (err) {
+    showToast(err.message, "error");
+  }
+}
+
+async function adminClearLocation() {
+  document.getElementById("ti-location-picker").style.display = "none";
+  try {
+    const result = await API.delete(`/ti/admin/schedule/${tiPickerUserId}/${tiPickerDate}`);
+    const msg = result.bookingCancelled ? " — reserva de mesa cancelada" : "";
+    showToast(`Declaração removida para ${tiPickerUserName}${msg}`);
+    loadTiSchedule();
+  } catch (err) {
+    showToast(err.message, "error");
+  }
+}
+
+// Picker de mesa para reservar em nome do membro
+async function openDeskPicker() {
+  try {
+    const [desks, bookings] = await Promise.all([
+      API.get("/desks"),
+      API.get(`/bookings?date=${tiPickerDate}`),
+    ]);
+    const bookedIds = new Set(bookings.map((b) => b.desk_id));
+    const available = desks.filter((d) => d.is_active && !bookedIds.has(d.id));
+
+    const [y, m, d] = tiPickerDate.split("-");
+    document.getElementById("ti-desk-picker-title").textContent =
+      `Reservar mesa para ${tiPickerUserName} — ${d}/${m}/${y}`;
+
+    const list = document.getElementById("ti-desk-list");
+    if (available.length === 0) {
+      list.innerHTML = '<p style="color:var(--text-muted);font-size:.875rem">Nenhuma mesa disponível nesta data.</p>';
+    } else {
+      list.innerHTML = available.map((desk) =>
+        `<button class="btn btn-ghost" style="justify-content:flex-start" onclick="adminBookDesk(${desk.id}, '${escapeHtml(desk.name)}')">🪑 ${escapeHtml(desk.name)}</button>`
+      ).join("");
+    }
+    document.getElementById("ti-desk-picker").style.display = "flex";
+  } catch (err) {
+    showToast(err.message, "error");
+    loadTiSchedule();
+  }
+}
+
+function closeDeskPicker(e) {
+  if (e && e.target !== document.getElementById("ti-desk-picker")) return;
+  document.getElementById("ti-desk-picker").style.display = "none";
+  showToast(`SP marcado para ${tiPickerUserName} — sem reserva de mesa`);
+  loadTiSchedule();
+}
+
+async function adminBookDesk(deskId, deskName) {
+  document.getElementById("ti-desk-picker").style.display = "none";
+  try {
+    await API.post("/bookings/admin", { user_id: tiPickerUserId, desk_id: deskId, date: tiPickerDate });
+    showToast(`🏢 SP marcado — ${deskName} reservada para ${tiPickerUserName}`);
+    loadTiSchedule();
+  } catch (err) {
+    showToast(err.message, "error");
+    loadTiSchedule();
+  }
 }
 
 async function exportTiCSV() {

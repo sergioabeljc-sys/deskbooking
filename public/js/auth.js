@@ -18,9 +18,9 @@ toggleLink.addEventListener("click", () => {
   isLogin = !isLogin;
   nameGroup.style.display = isLogin ? "none" : "";
   setupTokenGroup.style.display = "none"; // apenas exibido se servidor exigir
-  formTitle.textContent = isLogin ? "Entrar" : "Criar conta";
+  formTitle.textContent = isLogin ? "Bem-vindo" : "Criar conta";
   formSubtitle.textContent = isLogin
-    ? "Reserve sua mesa de trabalho"
+    ? "Reserve sua mesa de trabalho e informe sua programação semanal"
     : "Cadastre-se para começar";
   submitBtn.textContent = isLogin ? "Entrar" : "Criar conta";
   toggleText.textContent = isLogin ? "Não tem conta?" : "Já tem conta?";

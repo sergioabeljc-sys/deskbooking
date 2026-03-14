@@ -51,7 +51,10 @@
     <div id="tab-bookings" style="display:none">
       <div class="card">
         <div class="card-header">
-          Todas as Reservas
+          <div>
+            Todas as Reservas
+            <span style="font-size:.8rem;font-weight:400;color:var(--text-muted);margin-left:.5rem">🏢 Escritório SP — São Paulo</span>
+          </div>
           <div style="display:flex;gap:.5rem;align-items:center;flex-wrap:wrap;">
             <input type="date" id="export-from" title="De" style="padding:.3rem .5rem;border:1px solid var(--border);border-radius:var(--radius);font-size:.8125rem;" />
             <span style="color:var(--text-muted);font-size:.8rem">até</span>
@@ -153,6 +156,30 @@
         </div>
       </div>
     </div>
+
+  <!-- Modal: Programação TI (admin) -->
+  <div id="ti-location-picker" style="display:none;position:fixed;inset:0;z-index:200;align-items:center;justify-content:center;background:rgba(0,0,0,.35)" onclick="closeTiPicker(event)">
+    <div class="modal-box" style="width:300px" onclick="event.stopPropagation()">
+      <div class="modal-title" id="ti-picker-title">Localização</div>
+      <div style="display:flex;flex-direction:column;gap:.5rem;margin-bottom:.75rem">
+        <button class="btn btn-ghost" style="justify-content:flex-start;gap:.75rem" onclick="adminSetLocation('home')">🏠 Home Office</button>
+        <button class="btn btn-ghost" style="justify-content:flex-start;gap:.75rem" onclick="adminSetLocation('sp')">🏢 Escritório SP</button>
+        <button class="btn btn-ghost" style="justify-content:flex-start;gap:.75rem" onclick="adminSetLocation('itaqua')">🏭 Itaquá</button>
+      </div>
+      <button class="btn btn-danger btn-sm btn-full" id="ti-picker-clear" onclick="adminClearLocation()" style="display:none">Remover declaração</button>
+      <button class="btn btn-ghost btn-sm btn-full" style="margin-top:.375rem" onclick="closeTiPicker()">Cancelar</button>
+    </div>
+  </div>
+
+  <!-- Modal: Selecionar Mesa (admin reserva para membro TI) -->
+  <div id="ti-desk-picker" style="display:none;position:fixed;inset:0;z-index:210;align-items:center;justify-content:center;background:rgba(0,0,0,.35)" onclick="closeDeskPicker(event)">
+    <div class="modal-box" style="width:340px;max-height:80vh;overflow-y:auto" onclick="event.stopPropagation()">
+      <div class="modal-title" id="ti-desk-picker-title">Reservar mesa para o membro</div>
+      <p style="font-size:.85rem;color:var(--text-muted);margin-bottom:.75rem">Selecione uma mesa disponível ou pule esta etapa.</p>
+      <div id="ti-desk-list" style="display:flex;flex-direction:column;gap:.375rem;margin-bottom:.75rem"></div>
+      <button class="btn btn-ghost btn-sm btn-full" onclick="closeDeskPicker()">Pular — apenas marcar SP</button>
+    </div>
+  </div>
 
   <!-- Modal: Nova Mesa -->
   <div id="modal-overlay" class="modal-overlay">

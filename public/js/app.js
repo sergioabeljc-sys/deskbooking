@@ -14,7 +14,15 @@ const dateInput = document.getElementById("date-input");
 const urlDate = new URLSearchParams(window.location.search).get("date");
 dateInput.value = (urlDate && urlDate >= todayISO()) ? urlDate : todayISO();
 dateInput.min = todayISO();
-dateInput.addEventListener("change", loadDesks);
+dateInput.addEventListener("change", () => {
+  const d = new Date(dateInput.value + "T12:00:00Z");
+  const dow = d.getUTCDay();
+  if (dow === 0 || dow === 6) {
+    showToast("Fins de semana não são permitidos.", "error");
+    dateInput.value = todayISO();
+  }
+  loadDesks();
+});
 
 function setView(v) {
   currentView = v;
