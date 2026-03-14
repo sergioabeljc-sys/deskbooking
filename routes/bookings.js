@@ -209,6 +209,16 @@ router.post("/", authMiddleware, async (req, res) => {
       date: booking.date,
     });
 
+    // Se o usuário for TI, registra automaticamente como SP na programação TI
+    const userRow = db.prepare("SELECT is_ti FROM users WHERE id = ?").get(req.user.id);
+    if (userRow?.is_ti) {
+      db.prepare(`
+        INSERT INTO ti_schedules (user_id, date, location)
+        VALUES (?, ?, 'sp')
+        ON CONFLICT(user_id, date) DO UPDATE SET location = 'sp'
+      `).run(req.user.id, date);
+    }
+
     res.json(booking);
   } catch (e) {
     if (e.message.includes("UNIQUE") && e.message.includes("desk_id")) {
@@ -246,6 +256,13 @@ router.delete("/:id", authMiddleware, async (req, res) => {
     deskName: booking.desk_name,
     date: booking.date,
   });
+
+  // Se o dono da reserva for TI e tinha SP declarado, remove a declaração automática
+  const ownerRow = db.prepare("SELECT is_ti FROM users WHERE id = ?").get(booking.user_id);
+  if (ownerRow?.is_ti) {
+    db.prepare("DELETE FROM ti_schedules WHERE user_id = ? AND date = ? AND location = 'sp'")
+      .run(booking.user_id, booking.date);
+  }
 
   res.json({ ok: true });
 });

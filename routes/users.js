@@ -6,9 +6,20 @@ const { authMiddleware, adminMiddleware } = require("../middleware/auth");
 // Listar todos os usuários (admin)
 router.get("/", authMiddleware, adminMiddleware, (req, res) => {
   const users = db
-    .prepare("SELECT id, name, email, is_admin, created_at FROM users ORDER BY created_at ASC")
+    .prepare("SELECT id, name, email, is_admin, is_ti, created_at FROM users ORDER BY created_at ASC")
     .all();
   res.json(users);
+});
+
+// Alternar TI (admin)
+router.put("/:id/toggle-ti", authMiddleware, adminMiddleware, (req, res) => {
+  const user = db.prepare("SELECT * FROM users WHERE id = ?").get(req.params.id);
+  if (!user) return res.status(404).json({ error: "Usuário não encontrado" });
+  db.prepare("UPDATE users SET is_ti = ? WHERE id = ?").run(user.is_ti ? 0 : 1, user.id);
+  const updated = db
+    .prepare("SELECT id, name, email, is_admin, is_ti FROM users WHERE id = ?")
+    .get(user.id);
+  res.json(updated);
 });
 
 // Alternar admin (admin)

@@ -43,7 +43,7 @@ router.post("/register", (req, res) => {
       .run(name.trim(), email.trim().toLowerCase(), hash, is_admin);
 
     const user = db
-      .prepare("SELECT id, name, email, is_admin FROM users WHERE id = ?")
+      .prepare("SELECT id, name, email, is_admin, is_ti FROM users WHERE id = ?")
       .get(result.lastInsertRowid);
 
     const { token, refreshToken } = issueTokens(user);
@@ -70,14 +70,14 @@ router.post("/login", (req, res) => {
   if (!row || !bcrypt.compareSync(password, row.password_hash))
     return res.status(401).json({ error: "E-mail ou senha incorretos" });
 
-  const user = { id: row.id, name: row.name, email: row.email, is_admin: row.is_admin };
+  const user = { id: row.id, name: row.name, email: row.email, is_admin: row.is_admin, is_ti: row.is_ti };
   const { token, refreshToken } = issueTokens(user);
   res.json({ token, refreshToken, user });
 });
 
 router.get("/me", authMiddleware, (req, res) => {
   const user = db
-    .prepare("SELECT id, name, email, is_admin FROM users WHERE id = ?")
+    .prepare("SELECT id, name, email, is_admin, is_ti FROM users WHERE id = ?")
     .get(req.user.id);
   if (!user) return res.status(404).json({ error: "Usuário não encontrado" });
   res.json(user);
@@ -133,7 +133,7 @@ router.put("/profile", authMiddleware, (req, res) => {
       .run(newName, newEmail, newHash, current.id);
 
     const updated = db
-      .prepare("SELECT id, name, email, is_admin FROM users WHERE id = ?")
+      .prepare("SELECT id, name, email, is_admin, is_ti FROM users WHERE id = ?")
       .get(current.id);
 
     const { token, refreshToken } = issueTokens(updated);
@@ -157,7 +157,7 @@ router.post("/refresh", (req, res) => {
     return res.status(401).json({ error: "Refresh token expirado" });
   }
 
-  const user = db.prepare("SELECT id, name, email, is_admin FROM users WHERE id = ?").get(row.user_id);
+  const user = db.prepare("SELECT id, name, email, is_admin, is_ti FROM users WHERE id = ?").get(row.user_id);
   if (!user) return res.status(401).json({ error: "Usuário não encontrado" });
 
   db.prepare("DELETE FROM refresh_tokens WHERE id = ?").run(row.id);

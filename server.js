@@ -117,6 +117,7 @@ app.use("/api/auth", require("./routes/auth"));
 app.use("/api/desks", require("./routes/desks"));
 app.use("/api/bookings", require("./routes/bookings"));
 app.use("/api/users", require("./routes/users"));
+app.use("/api/ti", require("./routes/ti"));
 
 // Tratamento de erros — logs sanitizados (sem senhas ou tokens)
 app.use((err, req, res, next) => {

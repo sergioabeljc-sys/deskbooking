@@ -1,0 +1,62 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Programação TI — Desk Booking</title>
+  <link rel="stylesheet" href="/css/style.css" />
+</head>
+<body>
+  <header class="header">
+    <span class="header-brand">Desk Booking — Programação TI</span>
+    <div class="header-user">
+      <div class="header-nav"><a href="/app.html">Reservar Mesa</a></div>
+      <div class="header-nav" id="admin-link" style="display:none"><a href="/admin.html">Painel Admin</a></div>
+      <span id="user-name"></span>
+      <button class="btn btn-ghost btn-sm" onclick="logout()">Sair</button>
+    </div>
+  </header>
+
+  <div class="admin-content" style="max-width:900px">
+    <div class="card" style="margin-top:1.5rem">
+      <div class="card-header">
+        Onde está a equipe esta semana?
+        <div style="display:flex;gap:.5rem;align-items:center">
+          <button class="btn btn-ghost btn-sm" onclick="weekNav(-1)">&#8592;</button>
+          <span id="week-label" style="font-weight:500;font-size:.9rem;min-width:160px;text-align:center"></span>
+          <button class="btn btn-ghost btn-sm" onclick="weekNav(1)">&#8594;</button>
+          <button class="btn btn-ghost btn-sm" onclick="goToCurrentWeek()">Hoje</button>
+        </div>
+      </div>
+      <div class="card-body" style="padding:0;overflow-x:auto">
+        <div id="ti-grid">
+          <p style="padding:1.5rem;color:var(--text-muted)">Carregando...</p>
+        </div>
+      </div>
+      <div style="padding:.75rem 1.25rem;border-top:1px solid var(--border);display:flex;gap:1.25rem;flex-wrap:wrap;font-size:.8125rem;color:var(--text-muted)">
+        <span>🏠 Home Office</span>
+        <span>🏢 Escritório SP</span>
+        <span>🏭 Itaquá</span>
+        <span style="opacity:.5">— Não declarado</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- Picker de localização -->
+  <div id="location-picker" style="display:none;position:fixed;inset:0;z-index:200;align-items:center;justify-content:center;background:rgba(0,0,0,.35)" onclick="closePicker(event)">
+    <div class="modal-box" style="width:280px" onclick="event.stopPropagation()">
+      <div class="modal-title" id="picker-title">Onde você estará?</div>
+      <div style="display:flex;flex-direction:column;gap:.5rem;margin-bottom:.75rem">
+        <button class="btn btn-ghost" style="justify-content:flex-start;gap:.75rem;font-size:.9375rem" onclick="setLocation('home')">🏠 Home Office</button>
+        <button class="btn btn-ghost" style="justify-content:flex-start;gap:.75rem;font-size:.9375rem" onclick="setLocation('sp')">🏢 Escritório SP</button>
+        <button class="btn btn-ghost" style="justify-content:flex-start;gap:.75rem;font-size:.9375rem" onclick="setLocation('itaqua')">🏭 Itaquá</button>
+      </div>
+      <button class="btn btn-danger btn-sm btn-full" id="picker-clear" onclick="clearLocation()" style="display:none">Remover declaração</button>
+      <button class="btn btn-ghost btn-sm btn-full" style="margin-top:.375rem" onclick="closePicker()">Cancelar</button>
+    </div>
+  </div>
+
+  <script src="/js/api.js"></script>
+  <script src="/js/ti.js"></script>
+</body>
+</html>

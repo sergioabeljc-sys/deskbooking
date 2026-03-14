@@ -377,12 +377,18 @@ async function loadUsers() {
             ${u.is_admin ? "Admin" : "Usuário"}
           </span>
         </td>
+        <td>
+          ${u.is_ti ? '<span class="badge badge-blue">TI</span>' : '<span class="badge badge-gray">—</span>'}
+        </td>
         <td style="display:flex;gap:.5rem;flex-wrap:wrap;">
           ${
             u.id !== user.id
               ? `
             <button class="btn btn-ghost btn-sm" onclick="toggleAdmin(${u.id}, ${u.is_admin})">
               ${u.is_admin ? "Remover Admin" : "Tornar Admin"}
+            </button>
+            <button class="btn btn-ghost btn-sm" onclick="toggleTi(${u.id}, ${u.is_ti})" style="color:${u.is_ti ? 'var(--primary)' : 'var(--text-muted)'}">
+              ${u.is_ti ? "Remover TI" : "Equipe TI"}
             </button>
             <button class="btn btn-danger btn-sm" data-id="${u.id}" data-name="${escapeHtml(u.name)}" onclick="deleteUser(+this.dataset.id, this.dataset.name)">Excluir</button>
           `
@@ -395,6 +401,16 @@ async function loadUsers() {
       .join("");
   } catch (err) {
     tbody.innerHTML = `<tr><td colspan="4" class="empty-state">${err.message}</td></tr>`;
+  }
+}
+
+async function toggleTi(id, currentTi) {
+  try {
+    await API.put(`/users/${id}/toggle-ti`);
+    showToast(currentTi ? "Removido da equipe TI" : "Adicionado à equipe TI");
+    loadUsers();
+  } catch (err) {
+    showToast(err.message, "error");
   }
 }
 

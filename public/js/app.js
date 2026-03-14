@@ -3,6 +3,7 @@ const user = requireAuth();
 if (user) {
   document.getElementById("user-name").textContent = user.name;
   if (user.is_admin) document.getElementById("admin-link").style.display = "";
+  if (user.is_ti) document.getElementById("ti-link").style.display = "";
 }
 
 // ─── View state ───────────────────────────────────────────────────────────────
@@ -10,7 +11,8 @@ let currentView = "day"; // 'day' | 'week'
 let currentWeekMonday = getWeekMonday(new Date());
 
 const dateInput = document.getElementById("date-input");
-dateInput.value = todayISO();
+const urlDate = new URLSearchParams(window.location.search).get("date");
+dateInput.value = (urlDate && urlDate >= todayISO()) ? urlDate : todayISO();
 dateInput.min = todayISO();
 dateInput.addEventListener("change", loadDesks);
 

@@ -58,6 +58,21 @@ db.exec(`
   );
 `);
 
+// Migrations incrementais
+try { db.exec("ALTER TABLE users ADD COLUMN is_ti INTEGER DEFAULT 0"); } catch {}
+
+db.exec(`
+  CREATE TABLE IF NOT EXISTS ti_schedules (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    user_id INTEGER NOT NULL,
+    date TEXT NOT NULL,
+    location TEXT NOT NULL CHECK(location IN ('home','sp','itaqua')),
+    created_at TEXT DEFAULT (datetime('now')),
+    FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
+    UNIQUE(user_id, date)
+  );
+`);
+
 // Seed default desks if none exist
 const deskCount = db.prepare("SELECT COUNT(*) as count FROM desks").get();
 if (deskCount.count === 0) {
