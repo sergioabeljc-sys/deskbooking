@@ -21,6 +21,7 @@
     <button class="tab-btn" data-tab="bookings" onclick="switchTab('bookings')">Reservas</button>
     <button class="tab-btn" data-tab="desks" onclick="switchTab('desks')">Mesas</button>
     <button class="tab-btn" data-tab="users" onclick="switchTab('users')">Usuários</button>
+    <button class="tab-btn" data-tab="ti" onclick="switchTab('ti')">Prog. TI</button>
   </nav>
 
   <div class="admin-content">
@@ -122,6 +123,36 @@
       </div>
     </div>
   </div>
+
+    <!-- TI Schedule tab -->
+    <div id="tab-ti" style="display:none">
+      <div class="card">
+        <div class="card-header">
+          Programação da Equipe TI
+          <div style="display:flex;gap:.5rem;align-items:center;flex-wrap:wrap">
+            <button class="btn btn-ghost btn-sm" onclick="tiWeekNav(-1)">&#8592;</button>
+            <span id="ti-week-label" style="font-weight:500;font-size:.9rem;min-width:160px;text-align:center"></span>
+            <button class="btn btn-ghost btn-sm" onclick="tiWeekNav(1)">&#8594;</button>
+            <button class="btn btn-ghost btn-sm" onclick="tiGoCurrentWeek()">Hoje</button>
+            <input type="date" id="ti-export-from" title="De" style="padding:.3rem .5rem;border:1px solid var(--border);border-radius:var(--radius);font-size:.8125rem" />
+            <span style="color:var(--text-muted);font-size:.8rem">até</span>
+            <input type="date" id="ti-export-to" title="Até" style="padding:.3rem .5rem;border:1px solid var(--border);border-radius:var(--radius);font-size:.8125rem" />
+            <button class="btn btn-ghost btn-sm" onclick="exportTiCSV()">Exportar CSV</button>
+          </div>
+        </div>
+        <div style="overflow-x:auto">
+          <div id="ti-admin-grid">
+            <p style="padding:1.5rem;color:var(--text-muted)">Selecione a aba para carregar.</p>
+          </div>
+        </div>
+        <div style="padding:.75rem 1.25rem;border-top:1px solid var(--border);display:flex;gap:1.25rem;flex-wrap:wrap;font-size:.8125rem;color:var(--text-muted)">
+          <span>🏠 Home Office</span>
+          <span>🏢 Escritório SP</span>
+          <span>🏭 Itaquá</span>
+          <span style="opacity:.5">— Não declarado</span>
+        </div>
+      </div>
+    </div>
 
   <!-- Modal: Nova Mesa -->
   <div id="modal-overlay" class="modal-overlay">

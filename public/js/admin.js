@@ -11,6 +11,7 @@ function switchTab(tab) {
   if (tab === "bookings") loadBookings();
   else if (tab === "desks") loadDesks();
   else if (tab === "users") loadUsers();
+  else if (tab === "ti") loadTiSchedule();
   else if (tab === "dashboard") loadDashboard();
 }
 
@@ -430,6 +431,131 @@ async function deleteUser(id, name) {
     await API.delete(`/users/${id}`);
     showToast("Usuário excluído");
     loadUsers();
+  } catch (err) {
+    showToast(err.message, "error");
+  }
+}
+
+// ─── TI Schedule (admin view) ──────────────────────────────────────────────────
+const TI_DAY_NAMES = ["Seg", "Ter", "Qua", "Qui", "Sex"];
+const TI_LOCATION = {
+  home:   { icon: "🏠", label: "Home Office" },
+  sp:     { icon: "🏢", label: "SP" },
+  itaqua: { icon: "🏭", label: "Itaquá" },
+};
+
+let tiAdminWeekMonday = tiGetWeekMonday(new Date());
+
+function tiGetWeekMonday(d) {
+  const date = new Date(d);
+  const day = date.getDay();
+  const diff = day === 0 ? -6 : 1 - day;
+  date.setDate(date.getDate() + diff);
+  date.setHours(0, 0, 0, 0);
+  return date;
+}
+
+function tiAddDays(date, n) {
+  const d = new Date(date);
+  d.setDate(d.getDate() + n);
+  return d;
+}
+
+function tiToISO(d) { return d.toISOString().split("T")[0]; }
+function tiFmt(d) {
+  return `${String(d.getDate()).padStart(2,"0")}/${String(d.getMonth()+1).padStart(2,"0")}`;
+}
+
+function tiWeekNav(delta) {
+  tiAdminWeekMonday = tiAddDays(tiAdminWeekMonday, delta * 7);
+  loadTiSchedule();
+}
+
+function tiGoCurrentWeek() {
+  tiAdminWeekMonday = tiGetWeekMonday(new Date());
+  loadTiSchedule();
+}
+
+async function loadTiSchedule() {
+  const grid = document.getElementById("ti-admin-grid");
+  grid.innerHTML = '<p style="padding:1.5rem;color:var(--text-muted)">Carregando...</p>';
+
+  const monday = tiAdminWeekMonday;
+  const friday = tiAddDays(monday, 4);
+  document.getElementById("ti-week-label").textContent =
+    `${tiFmt(monday)} – ${tiFmt(friday)} de ${friday.getFullYear()}`;
+
+  try {
+    const data = await API.get(`/ti/schedule?week=${tiToISO(monday)}`);
+    renderTiAdminGrid(data);
+  } catch (err) {
+    grid.innerHTML = `<p style="padding:1.5rem;color:var(--danger)">${escapeHtml(err.message)}</p>`;
+  }
+}
+
+function renderTiAdminGrid({ days, members }) {
+  const today = new Date().toISOString().split("T")[0];
+
+  if (members.length === 0) {
+    document.getElementById("ti-admin-grid").innerHTML =
+      '<p style="padding:1.5rem;color:var(--text-muted)">Nenhum membro TI cadastrado.</p>';
+    return;
+  }
+
+  let html = '<table style="width:100%;border-collapse:collapse;font-size:.875rem">';
+  html += '<thead><tr>';
+  html += '<th style="padding:.625rem .75rem;border-bottom:2px solid var(--border);text-align:left;color:var(--text-muted);font-size:.8125rem;min-width:130px">Membro</th>';
+  days.forEach((iso, i) => {
+    const isToday = iso === today;
+    const isPast = iso < today;
+    html += `<th style="padding:.625rem .5rem;border-bottom:2px solid var(--border);text-align:center;color:${isToday ? "var(--primary)" : "var(--text-muted)"};font-size:.8125rem;opacity:${isPast ? ".55" : "1"}">
+      <div style="font-weight:700;text-transform:uppercase">${TI_DAY_NAMES[i]}</div>
+      <div style="font-weight:400;font-size:.7rem">${tiFmt(new Date(iso + "T12:00:00"))}</div>
+    </th>`;
+  });
+  html += '</tr></thead><tbody>';
+
+  members.forEach((member) => {
+    html += '<tr>';
+    html += `<td style="padding:.625rem .75rem;border-bottom:1px solid var(--border);white-space:nowrap">${escapeHtml(member.name)}</td>`;
+    days.forEach((iso) => {
+      const loc = member.schedule[iso];
+      const isPast = iso < today;
+      let inner = loc
+        ? `<div style="display:flex;flex-direction:column;align-items:center;gap:2px">
+            <span style="font-size:1.1rem">${TI_LOCATION[loc].icon}</span>
+            <span style="font-size:.65rem;color:var(--text-muted)">${TI_LOCATION[loc].label}</span>
+           </div>`
+        : `<span style="color:var(--border)">—</span>`;
+      html += `<td style="border-bottom:1px solid var(--border);padding:.375rem .25rem;text-align:center;opacity:${isPast && !loc ? ".4" : "1"}">${inner}</td>`;
+    });
+    html += '</tr>';
+  });
+
+  html += '</tbody></table>';
+  document.getElementById("ti-admin-grid").innerHTML = html;
+}
+
+async function exportTiCSV() {
+  const from = document.getElementById("ti-export-from").value;
+  const to = document.getElementById("ti-export-to").value;
+  const params = new URLSearchParams();
+  if (from) params.set("from", from);
+  if (to) params.set("to", to);
+
+  const token = API.getToken();
+  const url = `/api/ti/export${params.toString() ? "?" + params.toString() : ""}`;
+  try {
+    const res = await fetch(url, { headers: { Authorization: `Bearer ${token}` } });
+    if (!res.ok) { const d = await res.json(); showToast(d.error || "Erro ao exportar", "error"); return; }
+    const blob = await res.blob();
+    const a = document.createElement("a");
+    a.href = URL.createObjectURL(blob);
+    a.download = "programacao-ti.csv";
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    URL.revokeObjectURL(a.href);
   } catch (err) {
     showToast(err.message, "error");
   }

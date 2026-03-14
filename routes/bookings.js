@@ -187,6 +187,20 @@ router.post("/", authMiddleware, async (req, res) => {
   const myBooking = db.prepare("SELECT id FROM bookings WHERE user_id = ? AND date = ?").get(req.user.id, date);
   if (myBooking) return res.status(409).json({ error: "Você já tem uma reserva nesta data" });
 
+  // Limite de 3 reservas por semana (Seg-Sex)
+  const ref = new Date(date + "T12:00:00Z");
+  const diffToMon = ref.getUTCDay() === 0 ? -6 : 1 - ref.getUTCDay();
+  const weekStart = new Date(ref);
+  weekStart.setUTCDate(ref.getUTCDate() + diffToMon);
+  const weekEnd = new Date(weekStart);
+  weekEnd.setUTCDate(weekStart.getUTCDate() + 4);
+  const weeklyCount = db.prepare(
+    "SELECT COUNT(*) as cnt FROM bookings WHERE user_id = ? AND date >= ? AND date <= ?"
+  ).get(req.user.id, weekStart.toISOString().split("T")[0], weekEnd.toISOString().split("T")[0]).cnt;
+  if (weeklyCount >= 3) {
+    return res.status(409).json({ error: "Limite de 3 reservas por semana atingido" });
+  }
+
   try {
     const result = db
       .prepare("INSERT INTO bookings (user_id, desk_id, date) VALUES (?, ?, ?)")
