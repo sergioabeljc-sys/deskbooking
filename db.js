@@ -73,6 +73,19 @@ db.exec(`
   );
 `);
 
+db.exec(`
+  CREATE TABLE IF NOT EXISTS audit_log (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    actor_id INTEGER NOT NULL,
+    actor_name TEXT NOT NULL,
+    action TEXT NOT NULL,
+    target_type TEXT,
+    target_id INTEGER,
+    details TEXT,
+    created_at TEXT DEFAULT (datetime('now'))
+  );
+`);
+
 // Seed default desks if none exist
 const deskCount = db.prepare("SELECT COUNT(*) as count FROM desks").get();
 if (deskCount.count === 0) {

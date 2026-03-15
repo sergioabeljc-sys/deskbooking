@@ -3,6 +3,7 @@ const router = express.Router();
 const db = require("../db");
 const { authMiddleware, adminMiddleware } = require("../middleware/auth");
 const { sendBookingConfirmation, sendBookingCancellation } = require("../services/email");
+const { auditLog } = require("../utils/audit");
 
 // Exportar reservas CSV (admin) — deve vir antes de /:id para evitar conflito
 router.get("/export", authMiddleware, adminMiddleware, (req, res) => {
@@ -295,6 +296,12 @@ router.delete("/:id", authMiddleware, async (req, res) => {
 
   db.prepare("DELETE FROM bookings WHERE id = ?").run(req.params.id);
 
+  if (req.user.is_admin && booking.user_id !== req.user.id) {
+    auditLog(req.user.id, req.user.name, "cancel_booking", "booking", booking.id, {
+      desk: booking.desk_name, date: booking.date, user: booking.user_name,
+    });
+  }
+
   // Send cancellation email (non-blocking)
   sendBookingCancellation({
     to: booking.user_email,
@@ -362,6 +369,10 @@ router.post("/admin", authMiddleware, adminMiddleware, async (req, res) => {
     `).get(result.lastInsertRowid);
 
     sendBookingConfirmation({ to: booking.user_email, name: booking.user_name, deskName: booking.desk_name, date: booking.date });
+
+    auditLog(req.user.id, req.user.name, "create_booking_admin", "booking", result.lastInsertRowid, {
+      desk: desk.name, date, user: targetUser.name,
+    });
 
     // Marca SP na programação TI se o usuário for TI
     const userRow = db.prepare("SELECT is_ti FROM users WHERE id = ?").get(user_id);

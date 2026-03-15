@@ -291,7 +291,10 @@ async function loadMyBookings() {
           <strong>${escapeHtml(b.desk_name)}</strong>
           <span>${formatDate(b.date)}</span>
         </div>
-        <button class="btn btn-danger btn-sm" onclick="cancelBooking(${b.id})">Cancelar</button>
+        <div style="display:flex;gap:.375rem">
+          <button class="btn btn-ghost btn-sm" title="Adicionar ao Calendário" onclick='downloadICS(${JSON.stringify({id:b.id,date:b.date,desk_name:b.desk_name})})'>📅</button>
+          <button class="btn btn-danger btn-sm" onclick="cancelBooking(${b.id})">Cancelar</button>
+        </div>
       </li>
     `
       )

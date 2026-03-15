@@ -3,6 +3,7 @@ const router = express.Router();
 const db = require("../db");
 const { authMiddleware, adminMiddleware } = require("../middleware/auth");
 const { sendBookingCancellation } = require("../services/email");
+const { auditLog } = require("../utils/audit");
 
 function tiMiddleware(req, res, next) {
   const row = db.prepare("SELECT is_ti, is_admin FROM users WHERE id = ?").get(req.user.id);
@@ -203,6 +204,10 @@ router.post("/admin/schedule", authMiddleware, adminMiddleware, (req, res) => {
     ? !!db.prepare("SELECT id FROM bookings WHERE user_id = ? AND date = ?").get(user_id, date)
     : false;
 
+  auditLog(req.user.id, req.user.name, "set_ti_location", "user", user_id, {
+    member_id: user_id, date, location,
+  });
+
   res.json({ ok: true, date, location, bookingCancelled, hasBooking });
 });
 
@@ -212,6 +217,9 @@ router.delete("/admin/schedule/:userId/:date", authMiddleware, adminMiddleware, 
   if (!/^\d{4}-\d{2}-\d{2}$/.test(date)) return res.status(400).json({ error: "Data inválida" });
   db.prepare("DELETE FROM ti_schedules WHERE user_id = ? AND date = ?").run(userId, date);
   const bookingCancelled = cancelBookingForDate(parseInt(userId, 10), date);
+  auditLog(req.user.id, req.user.name, "clear_ti_location", "user", parseInt(userId, 10), {
+    member_id: userId, date,
+  });
   res.json({ ok: true, bookingCancelled });
 });
 

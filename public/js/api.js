@@ -173,3 +173,30 @@ function showToast(message, type = "success") {
     setTimeout(() => toast.remove(), 300);
   }, 3000);
 }
+
+function downloadICS(booking) {
+  const dateStr = booking.date.replace(/-/g, "");
+  const next = new Date(booking.date + "T12:00:00Z");
+  next.setUTCDate(next.getUTCDate() + 1);
+  const nextStr = next.toISOString().split("T")[0].replace(/-/g, "");
+  const now = new Date().toISOString().replace(/[-:.]/g, "").slice(0, 15) + "Z";
+  const ics = [
+    "BEGIN:VCALENDAR","VERSION:2.0","PRODID:-//Desk Booking//PT",
+    "CALSCALE:GREGORIAN","METHOD:PUBLISH","BEGIN:VEVENT",
+    `UID:booking-${booking.id}@desk-booking`,
+    `DTSTAMP:${now}`,
+    `DTSTART;VALUE=DATE:${dateStr}`,
+    `DTEND;VALUE=DATE:${nextStr}`,
+    `SUMMARY:Mesa — ${escapeHtml(booking.desk_name)}`,
+    "LOCATION:Escritório SP — São Paulo",
+    "DESCRIPTION:Reserva de mesa no sistema Desk Booking.",
+    "END:VEVENT","END:VCALENDAR",
+  ].join("\r\n");
+  const blob = new Blob([ics], { type: "text/calendar; charset=utf-8" });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = `reserva-${booking.date}.ics`;
+  a.click();
+  URL.revokeObjectURL(url);
+}

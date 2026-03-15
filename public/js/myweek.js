@@ -55,8 +55,7 @@ async function loadWeek() {
 
   try {
     // Fetch user bookings
-    const bookingsData = await API.get("/bookings/my");
-    const bookings = bookingsData.bookings || bookingsData;
+    const bookings = await API.get("/bookings/mine");
     const bookingMap = {};
     bookings.forEach((b) => { bookingMap[b.date] = b; });
 
@@ -79,7 +78,7 @@ async function loadWeek() {
         statusHtml = `
           <div class="myweek-status myweek-booked">🏢 Mesa reservada</div>
           <div class="myweek-detail">${escapeHtml(booking.desk_name)}</div>
-          ${!isPast ? `<button class="btn btn-danger btn-sm" style="margin-top:.5rem;width:100%" onclick="cancelMyBooking(${booking.id})">Cancelar</button>` : ""}`;
+          ${!isPast ? `<div style="display:flex;gap:.375rem;margin-top:.5rem"><button class="btn btn-ghost btn-sm" title="Adicionar ao Calendário" onclick='downloadICS(${JSON.stringify({id:booking.id,date:date,desk_name:booking.desk_name})})'>📅</button><button class="btn btn-danger btn-sm" style="flex:1" onclick="cancelMyBooking(${booking.id})">Cancelar</button></div>` : ""}`;
       } else if (location) {
         statusHtml = `
           <div class="myweek-status myweek-loc">${LOC_EMOJI[location]} ${LOC_LABEL[location]}</div>

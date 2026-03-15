@@ -12,6 +12,7 @@ function switchTab(tab) {
   else if (tab === "desks") loadDesks();
   else if (tab === "users") loadUsers();
   else if (tab === "ti") loadTiSchedule();
+  else if (tab === "audit") loadAudit();
   else if (tab === "dashboard") loadDashboard();
 }
 
@@ -206,6 +207,55 @@ async function loadDashboard() {
   }
 }
 
+// ─── Audit Log ────────────────────────────────────────────────────────────────
+let auditPage = 1;
+
+async function loadAudit(page) {
+  if (page !== undefined) auditPage = page;
+  const tbody = document.getElementById("audit-body");
+  const paginEl = document.getElementById("audit-pagination");
+  try {
+    const result = await API.get(`/audit?page=${auditPage}&limit=50`);
+    const logs = result.data;
+    if (logs.length === 0) {
+      tbody.innerHTML = '<tr><td colspan="4" class="empty-state">Nenhuma ação registrada</td></tr>';
+      paginEl.innerHTML = "";
+      return;
+    }
+    tbody.innerHTML = logs.map((l) => {
+      const dt = new Date(l.created_at + "Z");
+      const dateStr = dt.toLocaleDateString("pt-BR") + " " + dt.toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" });
+      let details = "";
+      if (l.details_parsed) {
+        const d = l.details_parsed;
+        if (d.desk && d.date && d.user) details = `${escapeHtml(d.desk)} · ${formatDate(d.date)} · ${escapeHtml(d.user)}`;
+        else if (d.name) details = escapeHtml(d.name) + (d.email ? ` &lt;${escapeHtml(d.email)}&gt;` : "") + (d.is_ti !== undefined ? ` → TI: ${d.is_ti ? "sim" : "não"}` : "") + (d.is_admin !== undefined ? ` → Admin: ${d.is_admin ? "sim" : "não"}` : "");
+        else if (d.date && d.location) details = `${formatDate(d.date)} · ${escapeHtml(d.location)}`;
+      }
+      return `<tr>
+        <td style="white-space:nowrap;color:var(--text-muted);font-size:.8rem">${dateStr}</td>
+        <td>${escapeHtml(l.actor_name)}</td>
+        <td><span style="font-size:.8rem;font-weight:600;padding:.15rem .5rem;border-radius:4px;background:var(--bg)">${escapeHtml(l.action_label)}</span></td>
+        <td style="font-size:.8125rem;color:var(--text-muted)">${details || "—"}</td>
+      </tr>`;
+    }).join("");
+
+    // Pagination
+    paginEl.innerHTML = "";
+    if (result.pages > 1) {
+      for (let p = 1; p <= result.pages; p++) {
+        const btn = document.createElement("button");
+        btn.className = `btn btn-sm ${p === auditPage ? "btn-primary" : "btn-ghost"}`;
+        btn.textContent = p;
+        btn.onclick = () => loadAudit(p);
+        paginEl.appendChild(btn);
+      }
+    }
+  } catch (err) {
+    tbody.innerHTML = `<tr><td colspan="4" class="empty-state">${escapeHtml(err.message)}</td></tr>`;
+  }
+}
+
 // ─── Bookings ─────────────────────────────────────────────────────────────────
 let bookingsPage = 1;
 
@@ -225,7 +275,10 @@ async function loadBookings(page) {
           <td>${formatDate(b.date)}</td>
           <td>${escapeHtml(b.desk_name)}</td>
           <td>${escapeHtml(b.user_name)}</td>
-          <td><button class="btn btn-danger btn-sm" onclick="cancelBooking(${b.id})">Cancelar</button></td>
+          <td style="display:flex;gap:.375rem;align-items:center">
+            <button class="btn btn-ghost btn-sm" title="Exportar .ics" onclick='downloadICS(${JSON.stringify({id:b.id,date:b.date,desk_name:b.desk_name})})'>📅</button>
+            <button class="btn btn-danger btn-sm" onclick="cancelBooking(${b.id})">Cancelar</button>
+          </td>
         </tr>
       `
         )
