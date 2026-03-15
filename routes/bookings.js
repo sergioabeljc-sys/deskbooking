@@ -210,6 +210,11 @@ router.post("/", authMiddleware, async (req, res) => {
   const today = new Date().toISOString().split("T")[0];
   if (date < today) return res.status(400).json({ error: "Não é possível reservar para datas passadas" });
 
+  const _todayD = new Date(); _todayD.setUTCHours(0, 0, 0, 0);
+  const _maxD = new Date(_todayD); _maxD.setUTCDate(_todayD.getUTCDate() + 28);
+  if (new Date(date + "T00:00:00Z") > _maxD)
+    return res.status(400).json({ error: "Não é permitido reservar com mais de 4 semanas de antecedência" });
+
   const dow = new Date(date + "T12:00:00Z").getUTCDay();
   if (dow === 0 || dow === 6) return res.status(400).json({ error: "Não é permitido reservar para fins de semana" });
 
@@ -296,7 +301,7 @@ router.delete("/:id", authMiddleware, async (req, res) => {
 
   db.prepare("DELETE FROM bookings WHERE id = ?").run(req.params.id);
 
-  if (req.user.is_admin && booking.user_id !== req.user.id) {
+  if (req.user.is_admin) {
     auditLog(req.user.id, req.user.name, "cancel_booking", "booking", booking.id, {
       desk: booking.desk_name, date: booking.date, user: booking.user_name,
     });
