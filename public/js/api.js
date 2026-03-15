@@ -174,6 +174,81 @@ function showToast(message, type = "success") {
   }, 3000);
 }
 
+// ── Mobile hamburger menu ───────────────────────────────────────────────────
+function _setupMobileMenu() {
+  const header = document.querySelector(".header");
+  if (!header) return;
+  const headerUser = header.querySelector(".header-user");
+  if (!headerUser) return;
+
+  // Burger button (inserted into header)
+  const btn = document.createElement("button");
+  btn.className = "mobile-menu-btn";
+  btn.setAttribute("aria-label", "Abrir menu");
+  btn.innerHTML =
+    '<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="18" x2="21" y2="18"/></svg>';
+  header.appendChild(btn);
+
+  const overlay = document.createElement("div");
+  overlay.className = "mobile-overlay";
+  document.body.appendChild(overlay);
+
+  const drawer = document.createElement("nav");
+  drawer.className = "mobile-drawer";
+  document.body.appendChild(drawer);
+
+  function buildDrawer() {
+    drawer.innerHTML = "";
+
+    // User name
+    const userName = document.getElementById("user-name");
+    if (userName && userName.textContent.trim()) {
+      const ud = document.createElement("div");
+      ud.className = "mobile-drawer-user";
+      ud.textContent = userName.textContent.trim();
+      drawer.appendChild(ud);
+    }
+
+    // Nav links (only those currently visible)
+    headerUser.querySelectorAll(".header-nav").forEach((nav) => {
+      if (nav.style.display === "none") return;
+      const clone = nav.cloneNode(true);
+      clone.style.display = "";
+      clone.querySelectorAll("a").forEach((a) => a.addEventListener("click", closeMenu));
+      drawer.appendChild(clone);
+    });
+
+    // Buttons (Meu Perfil, Sair, etc.)
+    headerUser.querySelectorAll("button").forEach((origBtn) => {
+      const clone = origBtn.cloneNode(true);
+      // Re-attach inline onclick (global function references are preserved)
+      if (origBtn.getAttribute("onclick")) {
+        clone.setAttribute("onclick", origBtn.getAttribute("onclick"));
+      }
+      drawer.appendChild(clone);
+    });
+  }
+
+  function openMenu() {
+    buildDrawer();
+    drawer.classList.add("open");
+    overlay.classList.add("open");
+    document.body.style.overflow = "hidden";
+  }
+
+  function closeMenu() {
+    drawer.classList.remove("open");
+    overlay.classList.remove("open");
+    document.body.style.overflow = "";
+  }
+
+  btn.addEventListener("click", openMenu);
+  overlay.addEventListener("click", closeMenu);
+  window._closeMobileMenu = closeMenu;
+}
+document.addEventListener("DOMContentLoaded", _setupMobileMenu);
+// ────────────────────────────────────────────────────────────────────────────
+
 function downloadICS(booking) {
   const dateStr = booking.date.replace(/-/g, "");
   const next = new Date(booking.date + "T12:00:00Z");

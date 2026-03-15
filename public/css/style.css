@@ -626,3 +626,189 @@ tr:hover td { background: var(--bg); }
   font-size: .78rem;
   color: var(--text-muted);
 }
+
+/* ── Mobile hamburger button ─────────────────────────────────────────────── */
+.mobile-menu-btn {
+  display: none;
+  align-items: center;
+  justify-content: center;
+  width: 38px;
+  height: 38px;
+  background: transparent;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  cursor: pointer;
+  color: var(--text);
+  flex-shrink: 0;
+  padding: 0;
+}
+
+/* Overlay */
+.mobile-overlay {
+  display: none;
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, .4);
+  z-index: 150;
+  -webkit-tap-highlight-color: transparent;
+}
+.mobile-overlay.open { display: block; }
+
+/* Slide-in drawer */
+.mobile-drawer {
+  position: fixed;
+  top: 0;
+  right: -100%;
+  width: min(288px, 88vw);
+  height: 100dvh;
+  height: 100vh; /* fallback */
+  background: var(--surface);
+  box-shadow: -4px 0 28px rgba(0, 0, 0, .18);
+  z-index: 200;
+  padding: 1.25rem 1rem;
+  display: flex;
+  flex-direction: column;
+  gap: .5rem;
+  transition: right .25s ease;
+  overflow-y: auto;
+}
+.mobile-drawer.open { right: 0; }
+
+.mobile-drawer-user {
+  font-weight: 700;
+  font-size: .9rem;
+  color: var(--text);
+  padding: .625rem .875rem;
+  background: var(--bg);
+  border-radius: var(--radius);
+  border: 1px solid var(--border);
+  margin-bottom: .25rem;
+  text-overflow: ellipsis;
+  overflow: hidden;
+  white-space: nowrap;
+}
+
+/* Nav links inside drawer */
+.mobile-drawer .header-nav {
+  display: flex !important;
+}
+.mobile-drawer .header-nav a {
+  display: flex;
+  width: 100%;
+  padding: .75rem 1rem;
+  font-size: .9375rem;
+  border-radius: var(--radius);
+  border: 1px solid var(--border);
+  color: var(--text);
+  text-decoration: none;
+  font-weight: 500;
+  background: var(--surface);
+}
+.mobile-drawer .header-nav a:hover {
+  background: var(--primary);
+  border-color: var(--primary);
+  color: #fff;
+}
+
+/* Buttons inside drawer */
+.mobile-drawer .btn {
+  width: 100%;
+  justify-content: flex-start;
+  padding: .75rem 1rem;
+  font-size: .9375rem;
+}
+
+/* ── Mobile breakpoint (≤ 768 px) ────────────────────────────────────────── */
+@media (max-width: 768px) {
+  /* Show hamburger, hide desktop nav */
+  .mobile-menu-btn { display: flex; }
+  .header-user     { display: none; }
+
+  /* Compact header */
+  .header {
+    padding: 0 .875rem;
+    height: 56px;
+  }
+  .header-brand { font-size: .95rem; }
+
+  /* App layout: remove 2-column grid, show main first */
+  .app-layout {
+    grid-template-columns: 1fr;
+    padding: .75rem;
+    gap: .875rem;
+  }
+  .app-layout main { order: 1; }
+  .app-layout aside { order: 2; }
+
+  /* Desk grid: 3 columns */
+  .desk-grid { grid-template-columns: repeat(3, 1fr); }
+
+  /* Modals: almost full-width */
+  .modal-box { width: min(380px, 92vw) !important; }
+
+  /* Admin content */
+  .admin-content { padding: .75rem; }
+
+  /* Prevent iOS auto-zoom on focus (font-size must be ≥ 16px) */
+  input, select, textarea {
+    font-size: 1rem !important;
+  }
+
+  /* Dashboard cards: 2 per row */
+  .dashboard-cards { grid-template-columns: repeat(2, 1fr); }
+
+  /* Week matrix: enable horizontal scroll */
+  .week-grid { overflow-x: auto; }
+  .week-header-row,
+  .week-desk-row   { min-width: 520px; }
+
+  /* Auth page: compact logos */
+  .auth-logo-item { padding: .5rem 1rem; }
+  .auth-logo-item img { height: 36px; }
+  .auth-logo-divider { display: none; }
+  .auth-card { padding: 1.5rem 1.25rem; }
+  .auth-logos { gap: .875rem; }
+
+  /* Myweek grid: horizontal scroll if 5 cols don't fit */
+  #week-grid {
+    grid-template-columns: repeat(5, minmax(130px, 1fr)) !important;
+    overflow-x: auto;
+    padding: .75rem !important;
+    gap: .5rem !important;
+  }
+
+  /* Card headers with controls: wrap */
+  .card-header {
+    flex-wrap: wrap;
+    gap: .5rem;
+  }
+
+  /* Tables keep horizontal scroll (already have .table-wrap) */
+  .table-wrap { -webkit-overflow-scrolling: touch; }
+
+  /* Admin tabs: hide scrollbar but allow scroll */
+  .admin-tabs { -webkit-overflow-scrolling: touch; }
+
+  /* Bigger tap targets for all buttons */
+  .btn { min-height: 40px; }
+  .btn-sm { min-height: 34px; }
+
+  /* Toast: ensure it's above drawer */
+  .toast { bottom: 1rem; max-width: 88vw; white-space: normal; text-align: center; }
+
+  /* TI/booking location picker: full width on mobile */
+  #location-picker > div,
+  #ti-location-picker > div { width: min(300px, 92vw) !important; }
+
+  /* Booking list items: stack label above actions */
+  .booking-item { flex-wrap: wrap; }
+}
+
+/* ── Very small screens (≤ 400 px) ──────────────────────────────────────── */
+@media (max-width: 400px) {
+  .desk-grid { gap: .4rem; }
+  .desk-cell { font-size: .7rem; padding: .3rem; }
+  .desk-icon { font-size: .95rem; }
+  .dashboard-card-value { font-size: 1.6rem; }
+  .dashboard-card { padding: .875rem 1rem; }
+}
