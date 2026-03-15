@@ -118,12 +118,18 @@ async function loadDashboard() {
   try {
     const stats = await API.get("/bookings/stats");
 
-    const { totalLast30, peakDesk, byDesk, byDayOfWeek, byUser, activeDeskCount } = stats;
+    const { totalLast30, peakDesk, byDesk, byDayOfWeek, byUser, activeDeskCount, officeOccupancy } = stats;
 
     // Working days in last 30 days ≈ 22
     const WORKING_DAYS = 22;
     const maxPossible = activeDeskCount * WORKING_DAYS;
     const occupancyPct = maxPossible > 0 ? Math.round((totalLast30 / maxPossible) * 100) : 0;
+
+    // Office occupancy this week
+    const spPct    = officeOccupancy?.sp?.total > 0
+      ? Math.round((officeOccupancy.sp.users / officeOccupancy.sp.total) * 100) : 0;
+    const itaquaPct = officeOccupancy?.itaqua?.total > 0
+      ? Math.round((officeOccupancy.itaqua.users / officeOccupancy.itaqua.total) * 100) : 0;
 
     // Summary cards
     cardsEl.innerHTML = `
@@ -137,7 +143,15 @@ async function loadDashboard() {
       </div>
       <div class="dashboard-card">
         <div class="dashboard-card-value">${occupancyPct}%</div>
-        <div class="dashboard-card-label">Taxa de ocupação média</div>
+        <div class="dashboard-card-label">Taxa de ocupação média (30 dias)</div>
+      </div>
+      <div class="dashboard-card">
+        <div class="dashboard-card-value">${spPct}%</div>
+        <div class="dashboard-card-label">🏢 Ocupação SP esta semana<br><span style="font-size:.75rem;color:var(--text-muted)">${officeOccupancy?.sp?.users ?? 0} de ${officeOccupancy?.sp?.total ?? 0} usuários</span></div>
+      </div>
+      <div class="dashboard-card">
+        <div class="dashboard-card-value">${itaquaPct}%</div>
+        <div class="dashboard-card-label">🏭 Ocupação Itaquá esta semana<br><span style="font-size:.75rem;color:var(--text-muted)">${officeOccupancy?.itaqua?.users ?? 0} de ${officeOccupancy?.itaqua?.total ?? 0} da equipe TI</span></div>
       </div>
     `;
 

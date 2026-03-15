@@ -91,6 +91,29 @@ router.get("/stats", authMiddleware, adminMiddleware, (req, res) => {
     LIMIT 10
   `).all();
 
+  // Ocupação por escritório — semana atual (Seg-Sex)
+  const todayStr = new Date().toISOString().split("T")[0];
+  const ref = new Date(todayStr + "T12:00:00Z");
+  const diffToMon = ref.getUTCDay() === 0 ? -6 : 1 - ref.getUTCDay();
+  const weekMonday = new Date(ref);
+  weekMonday.setUTCDate(ref.getUTCDate() + diffToMon);
+  const weekFriday = new Date(weekMonday);
+  weekFriday.setUTCDate(weekMonday.getUTCDate() + 4);
+  const wStart = weekMonday.toISOString().split("T")[0];
+  const wEnd   = weekFriday.toISOString().split("T")[0];
+
+  const spUsersThisWeek = db.prepare(
+    "SELECT COUNT(DISTINCT user_id) AS cnt FROM bookings WHERE date >= ? AND date <= ?"
+  ).get(wStart, wEnd).cnt;
+
+  const totalUsers = db.prepare("SELECT COUNT(*) AS cnt FROM users").get().cnt;
+
+  const itaquaUsersThisWeek = db.prepare(
+    "SELECT COUNT(DISTINCT user_id) AS cnt FROM ti_schedules WHERE location = 'itaqua' AND date >= ? AND date <= ?"
+  ).get(wStart, wEnd).cnt;
+
+  const totalTiUsers = db.prepare("SELECT COUNT(*) AS cnt FROM users WHERE is_ti = 1").get().cnt;
+
   res.json({
     byDesk: byDesk.map((r) => ({
       desk_name: r.desk_name,
@@ -102,6 +125,12 @@ router.get("/stats", authMiddleware, adminMiddleware, (req, res) => {
     totalLast30,
     peakDesk,
     activeDeskCount,
+    officeOccupancy: {
+      weekStart: wStart,
+      weekEnd: wEnd,
+      sp:     { users: spUsersThisWeek,     total: totalUsers },
+      itaqua: { users: itaquaUsersThisWeek, total: totalTiUsers },
+    },
   });
 });
 

@@ -103,6 +103,12 @@ router.post("/schedule", authMiddleware, tiMiddleware, (req, res) => {
   const dow = new Date(date + "T12:00:00Z").getUTCDay();
   if (dow === 0 || dow === 6) return res.status(400).json({ error: "Não é permitido declarar programação para fins de semana" });
 
+  // Limite de 4 semanas à frente
+  const today = new Date(); today.setUTCHours(0, 0, 0, 0);
+  const maxDate = new Date(today); maxDate.setUTCDate(today.getUTCDate() + 28);
+  const reqDate = new Date(date + "T00:00:00Z");
+  if (reqDate > maxDate) return res.status(400).json({ error: "Não é permitido declarar programação com mais de 4 semanas de antecedência" });
+
   // Limite de 2 home offices por semana
   if (location === "home") {
     const days = getWeekBounds(date);
@@ -161,6 +167,10 @@ router.post("/admin/schedule", authMiddleware, adminMiddleware, (req, res) => {
   }
   const dow = new Date(date + "T12:00:00Z").getUTCDay();
   if (dow === 0 || dow === 6) return res.status(400).json({ error: "Fins de semana não permitidos" });
+
+  const today2 = new Date(); today2.setUTCHours(0, 0, 0, 0);
+  const maxDate2 = new Date(today2); maxDate2.setUTCDate(today2.getUTCDate() + 28);
+  if (new Date(date + "T00:00:00Z") > maxDate2) return res.status(400).json({ error: "Não é permitido declarar com mais de 4 semanas de antecedência" });
 
   const member = db.prepare("SELECT id FROM users WHERE id = ? AND is_ti = 1").get(user_id);
   if (!member) return res.status(404).json({ error: "Membro TI não encontrado" });

@@ -526,3 +526,47 @@ tr:hover td { background: var(--bg); }
   font-weight: 600;
   white-space: nowrap;
 }
+
+/* My Week page */
+.myweek-day {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: .875rem .75rem;
+  display: flex;
+  flex-direction: column;
+  gap: .25rem;
+  min-height: 130px;
+}
+.myweek-today {
+  border-color: var(--primary);
+  box-shadow: 0 0 0 2px rgba(37,99,235,.15);
+}
+.myweek-past {
+  opacity: .6;
+}
+.myweek-dayname {
+  font-weight: 700;
+  font-size: .8rem;
+  text-transform: uppercase;
+  color: var(--text-muted);
+  letter-spacing: .04em;
+}
+.myweek-date {
+  font-size: 1.35rem;
+  font-weight: 700;
+  color: var(--text);
+  line-height: 1;
+  margin-bottom: .25rem;
+}
+.myweek-today .myweek-date {
+  color: var(--primary);
+}
+.myweek-status {
+  font-size: .82rem;
+  font-weight: 600;
+}
+.myweek-detail {
+  font-size: .78rem;
+  color: var(--text-muted);
+}

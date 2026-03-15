@@ -89,9 +89,29 @@ const API = {
   delete: (path) => API.fetch(path, { method: "DELETE" }),
 };
 
+function _scheduleAutoLogout(token) {
+  try {
+    const payload = JSON.parse(atob(token.split(".")[1]));
+    if (!payload.exp) return;
+    const msUntilExpiry = payload.exp * 1000 - Date.now();
+    if (msUntilExpiry <= 0) { logout(); return; }
+    // Try to refresh 60s before expiry, fallback to hard logout
+    setTimeout(async () => {
+      const refreshed = await API._tryRefresh();
+      if (refreshed) {
+        _scheduleAutoLogout(API.getToken());
+      } else {
+        showToast("Sessão expirada. Redirecionando...", "error");
+        setTimeout(logout, 2000);
+      }
+    }, Math.max(0, msUntilExpiry - 60000));
+  } catch {}
+}
+
 function requireAuth(adminOnly = false) {
   const user = API.getUser();
-  if (!user || !API.getToken()) {
+  const token = API.getToken();
+  if (!user || !token) {
     window.location.href = "/";
     return null;
   }
@@ -99,6 +119,7 @@ function requireAuth(adminOnly = false) {
     window.location.href = "/app.html";
     return null;
   }
+  _scheduleAutoLogout(token);
   return user;
 }
 

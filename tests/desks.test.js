@@ -1,5 +1,6 @@
 process.env.NODE_ENV = "test";
 process.env.JWT_SECRET = "test-secret-key-for-jest";
+process.env.SETUP_TOKEN = "";
 
 const request = require("supertest");
 const app = require("../server");
