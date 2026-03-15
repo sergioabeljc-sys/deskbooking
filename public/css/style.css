@@ -29,7 +29,7 @@ body {
   justify-content: center;
   padding: 2rem 1rem;
   gap: 1.5rem;
-  background-image: url("/img/bg-login.jpg");
+  background-image: none; /* embutida como base64 inline no index.html */
   background-size: cover;
   background-position: center top;
   background-repeat: no-repeat;

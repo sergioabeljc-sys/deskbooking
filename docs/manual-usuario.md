@@ -1,7 +1,4 @@
-# Manual do Usuário — Desk Booking
-
-**Sistema:** Desk Booking — Escritório SP
-**Perfil:** Usuário Padrão
+é muito
 
 ---
 
