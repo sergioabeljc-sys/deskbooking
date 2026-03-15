@@ -223,8 +223,8 @@ async function loadAudit(page) {
       return;
     }
     tbody.innerHTML = logs.map((l) => {
-      const dt = new Date(l.created_at + "Z");
-      const dateStr = dt.toLocaleDateString("pt-BR") + " " + dt.toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" });
+      const dt = new Date(l.created_at.replace(" ", "T") + "Z");
+      const dateStr = isNaN(dt) ? l.created_at : dt.toLocaleDateString("pt-BR") + " " + dt.toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" });
       let details = "";
       if (l.details_parsed) {
         const d = l.details_parsed;
