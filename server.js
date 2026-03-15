@@ -20,6 +20,7 @@ if (process.env.NODE_ENV === "production") {
 // Security headers
 app.use(
   helmet({
+    hsts: process.env.NODE_ENV === "production",
     contentSecurityPolicy: {
       directives: {
         defaultSrc: ["'self'"],
@@ -39,10 +40,20 @@ app.use(
 );
 
 // CORS — permite apenas origem configurada (ou mesma origem em produção)
-const allowedOrigin = process.env.ALLOWED_ORIGIN || `http://localhost:${process.env.PORT || 3000}`;
+const allowedOrigin = process.env.ALLOWED_ORIGIN;
 app.use(
   cors({
-    origin: process.env.NODE_ENV === "test" ? "*" : allowedOrigin,
+    origin: (origin, cb) => {
+      // No origin = same-origin or curl — always allow
+      if (!origin) return cb(null, true);
+      // Tests always allowed
+      if (process.env.NODE_ENV === "test") return cb(null, true);
+      // Explicit whitelist configured
+      if (allowedOrigin && origin === allowedOrigin) return cb(null, true);
+      // No whitelist configured → allow all (local dev)
+      if (!allowedOrigin) return cb(null, true);
+      cb(new Error("Not allowed by CORS"));
+    },
     methods: ["GET", "POST", "PUT", "DELETE"],
     allowedHeaders: ["Content-Type", "Authorization"],
   })

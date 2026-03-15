@@ -722,16 +722,16 @@ tr:hover td { background: var(--bg); }
 @media (max-width: 768px) {
   /* Show hamburger, hide desktop nav */
   .mobile-menu-btn { display: flex; }
-  .header-user     { display: none; }
+  .header-user     { display: none !important; }
 
   /* Compact header */
   .header {
     padding: 0 .875rem;
     height: 56px;
   }
-  .header-brand { font-size: .95rem; }
+  .header-brand { font-size: .9rem; }
 
-  /* App layout: remove 2-column grid, show main first */
+  /* App layout: single column, main content first */
   .app-layout {
     grid-template-columns: 1fr;
     padding: .75rem;
@@ -741,24 +741,30 @@ tr:hover td { background: var(--bg); }
   .app-layout aside { order: 2; }
 
   /* Desk grid: 3 columns */
-  .desk-grid { grid-template-columns: repeat(3, 1fr); }
+  .desk-grid {
+    grid-template-columns: repeat(3, 1fr);
+    gap: .5rem;
+  }
 
   /* Modals: almost full-width */
-  .modal-box { width: min(380px, 92vw) !important; }
+  .modal-box {
+    width: min(380px, 92vw) !important;
+    margin: 0;
+  }
 
   /* Admin content */
   .admin-content { padding: .75rem; }
 
   /* Prevent iOS auto-zoom on focus (font-size must be ≥ 16px) */
   input, select, textarea {
-    font-size: 1rem !important;
+    font-size: 16px !important;
   }
 
   /* Dashboard cards: 2 per row */
   .dashboard-cards { grid-template-columns: repeat(2, 1fr); }
 
   /* Week matrix: enable horizontal scroll */
-  .week-grid { overflow-x: auto; }
+  .week-grid { overflow-x: auto; -webkit-overflow-scrolling: touch; }
   .week-header-row,
   .week-desk-row   { min-width: 520px; }
 
@@ -766,13 +772,18 @@ tr:hover td { background: var(--bg); }
   .auth-logo-item { padding: .5rem 1rem; }
   .auth-logo-item img { height: 36px; }
   .auth-logo-divider { display: none; }
-  .auth-card { padding: 1.5rem 1.25rem; }
-  .auth-logos { gap: .875rem; }
+  .auth-card {
+    padding: 1.5rem 1.25rem;
+    max-width: 100%;
+  }
+  .auth-logos { gap: .75rem; }
+  .auth-container { padding: 1.5rem .875rem; }
 
   /* Myweek grid: horizontal scroll if 5 cols don't fit */
   #week-grid {
     grid-template-columns: repeat(5, minmax(130px, 1fr)) !important;
     overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
     padding: .75rem !important;
     gap: .5rem !important;
   }
@@ -781,34 +792,52 @@ tr:hover td { background: var(--bg); }
   .card-header {
     flex-wrap: wrap;
     gap: .5rem;
+    min-height: auto;
+    padding: .875rem 1rem;
   }
 
-  /* Tables keep horizontal scroll (already have .table-wrap) */
+  /* Tables keep horizontal scroll */
   .table-wrap { -webkit-overflow-scrolling: touch; }
 
-  /* Admin tabs: hide scrollbar but allow scroll */
+  /* Admin tabs */
   .admin-tabs { -webkit-overflow-scrolling: touch; }
 
-  /* Bigger tap targets for all buttons */
+  /* Bigger tap targets */
   .btn { min-height: 40px; }
-  .btn-sm { min-height: 34px; }
+  .btn-sm { min-height: 34px; padding: .25rem .625rem; }
 
-  /* Toast: ensure it's above drawer */
-  .toast { bottom: 1rem; max-width: 88vw; white-space: normal; text-align: center; }
+  /* Toast */
+  .toast {
+    bottom: 1rem;
+    max-width: 88vw;
+    white-space: normal;
+    text-align: center;
+  }
 
-  /* TI/booking location picker: full width on mobile */
+  /* Location pickers: full width */
   #location-picker > div,
   #ti-location-picker > div { width: min(300px, 92vw) !important; }
 
-  /* Booking list items: stack label above actions */
+  /* Booking list items */
   .booking-item { flex-wrap: wrap; }
+
+  /* Date picker row */
+  .date-picker-row { gap: .5rem; }
+
+  /* Booking actions in table */
+  .booking-actions { display: flex; flex-wrap: wrap; gap: .25rem; }
+
+  /* Legend wrap */
+  .legend { gap: .5rem; }
 }
 
 /* ── Very small screens (≤ 400 px) ──────────────────────────────────────── */
 @media (max-width: 400px) {
-  .desk-grid { gap: .4rem; }
-  .desk-cell { font-size: .7rem; padding: .3rem; }
-  .desk-icon { font-size: .95rem; }
-  .dashboard-card-value { font-size: 1.6rem; }
-  .dashboard-card { padding: .875rem 1rem; }
+  .desk-grid { gap: .35rem; }
+  .desk-cell { font-size: .65rem; padding: .25rem; }
+  .desk-icon { font-size: .875rem; }
+  .desk-bookedby { display: none; }
+  .dashboard-card-value { font-size: 1.5rem; }
+  .dashboard-card { padding: .75rem .875rem; }
+  .auth-logo-item img { height: 28px; }
 }
