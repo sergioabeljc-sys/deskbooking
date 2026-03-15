@@ -2,10 +2,14 @@
 // Email: RFC 5321 parcial, sem ReDoS, max 254 chars
 const EMAIL_RE = /^[a-zA-Z0-9._%+\-]+@[a-zA-Z0-9.\-]+\.[a-zA-Z]{2,}$/;
 
+const ALLOWED_DOMAIN = "voxcred.com.br";
+
 function validateEmail(email) {
   if (!email || typeof email !== "string") return "E-mail obrigatório";
   if (email.length > 254) return "E-mail muito longo";
-  if (!EMAIL_RE.test(email.trim())) return "Formato de e-mail inválido";
+  const normalized = email.trim().toLowerCase();
+  if (!EMAIL_RE.test(normalized)) return "Formato de e-mail inválido";
+  if (!normalized.endsWith("@" + ALLOWED_DOMAIN)) return `Apenas e-mails @${ALLOWED_DOMAIN} são permitidos`;
   return null;
 }
 

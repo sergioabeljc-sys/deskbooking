@@ -10,14 +10,14 @@ let adminToken, userToken;
 beforeAll(async () => {
   const admin = await request(app).post("/api/auth/register").send({
     name: "Admin",
-    email: "admin@desks.com",
+    email: "admin@voxcred.com.br",
     password: "123456",
   });
   adminToken = admin.body.token;
 
   const user = await request(app).post("/api/auth/register").send({
     name: "Usuario",
-    email: "user@desks.com",
+    email: "user@voxcred.com.br",
     password: "123456",
   });
   userToken = user.body.token;

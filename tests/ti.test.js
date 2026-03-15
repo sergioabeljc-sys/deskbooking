@@ -43,14 +43,14 @@ const [w1, w2, w3] = week; // Mon, Tue, Wed of that week
 beforeAll(async () => {
   const admin = await request(app).post("/api/auth/register").send({
     name: "Admin TI",
-    email: "admin@ti.com",
+    email: "admin@voxcred.com.br",
     password: "123456",
   });
   adminToken = admin.body.token;
 
   const ti = await request(app).post("/api/auth/register").send({
     name: "Membro TI",
-    email: "ti@ti.com",
+    email: "ti@voxcred.com.br",
     password: "123456",
   });
   tiToken = ti.body.token;
@@ -62,7 +62,7 @@ beforeAll(async () => {
     .set("Authorization", `Bearer ${adminToken}`);
   // Re-login to get token with is_ti = 1
   const login = await request(app).post("/api/auth/login").send({
-    email: "ti@ti.com",
+    email: "ti@voxcred.com.br",
     password: "123456",
   });
   tiToken = login.body.token;
@@ -131,7 +131,7 @@ describe("TI Schedule", () => {
     it("usuario comum sem acesso", async () => {
       const user = await request(app).post("/api/auth/register").send({
         name: "Comum",
-        email: "comum@ti.com",
+        email: "comum@voxcred.com.br",
         password: "123456",
       });
       const res = await request(app)
@@ -185,7 +185,7 @@ describe("TI Schedule", () => {
     it("admin rejeita membro não-TI", async () => {
       const other = await request(app).post("/api/auth/register").send({
         name: "Nao TI",
-        email: "naoti@ti.com",
+        email: "naoti@voxcred.com.br",
         password: "123456",
       });
       const res = await request(app)
@@ -206,7 +206,7 @@ describe("TI Schedule", () => {
     it("usuario comum não acessa rotas admin TI", async () => {
       const user = await request(app).post("/api/auth/register").send({
         name: "NaoAdmin",
-        email: "naoadmin@ti.com",
+        email: "naoadmin@voxcred.com.br",
         password: "123456",
       });
       const res = await request(app)
@@ -245,7 +245,7 @@ describe("TI Schedule", () => {
     it("usuario comum nao acessa export", async () => {
       const user = await request(app).post("/api/auth/register").send({
         name: "ExportUser",
-        email: "exportuser@ti.com",
+        email: "exportuser@voxcred.com.br",
         password: "123456",
       });
       const res = await request(app)

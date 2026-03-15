@@ -10,7 +10,7 @@ describe("Auth", () => {
     it("registra o primeiro usuario como admin", async () => {
       const res = await request(app).post("/api/auth/register").send({
         name: "Admin",
-        email: "admin@test.com",
+        email: "admin@voxcred.com.br",
         password: "123456",
       });
       expect(res.status).toBe(200);
@@ -21,7 +21,7 @@ describe("Auth", () => {
     it("registra usuario comum apos o primeiro", async () => {
       const res = await request(app).post("/api/auth/register").send({
         name: "Usuario",
-        email: "user@test.com",
+        email: "user@voxcred.com.br",
         password: "123456",
       });
       expect(res.status).toBe(200);
@@ -31,7 +31,7 @@ describe("Auth", () => {
     it("rejeita email duplicado", async () => {
       const res = await request(app).post("/api/auth/register").send({
         name: "Outro",
-        email: "admin@test.com",
+        email: "admin@voxcred.com.br",
         password: "123456",
       });
       expect(res.status).toBe(409);
@@ -40,7 +40,7 @@ describe("Auth", () => {
     it("rejeita senha curta", async () => {
       const res = await request(app).post("/api/auth/register").send({
         name: "Teste",
-        email: "novo@test.com",
+        email: "novo@voxcred.com.br",
         password: "123",
       });
       expect(res.status).toBe(400);
@@ -48,7 +48,16 @@ describe("Auth", () => {
 
     it("rejeita campos faltando", async () => {
       const res = await request(app).post("/api/auth/register").send({
-        email: "incompleto@test.com",
+        email: "incompleto@voxcred.com.br",
+      });
+      expect(res.status).toBe(400);
+    });
+
+    it("rejeita e-mail de domínio não permitido", async () => {
+      const res = await request(app).post("/api/auth/register").send({
+        name: "Externo",
+        email: "externo@gmail.com",
+        password: "123456",
       });
       expect(res.status).toBe(400);
     });
@@ -57,7 +66,7 @@ describe("Auth", () => {
   describe("POST /api/auth/login", () => {
     it("autentica com credenciais corretas", async () => {
       const res = await request(app).post("/api/auth/login").send({
-        email: "admin@test.com",
+        email: "admin@voxcred.com.br",
         password: "123456",
       });
       expect(res.status).toBe(200);
@@ -66,7 +75,7 @@ describe("Auth", () => {
 
     it("rejeita senha incorreta", async () => {
       const res = await request(app).post("/api/auth/login").send({
-        email: "admin@test.com",
+        email: "admin@voxcred.com.br",
         password: "errada",
       });
       expect(res.status).toBe(401);
@@ -74,7 +83,7 @@ describe("Auth", () => {
 
     it("rejeita email inexistente", async () => {
       const res = await request(app).post("/api/auth/login").send({
-        email: "naoexiste@test.com",
+        email: "naoexiste@voxcred.com.br",
         password: "123456",
       });
       expect(res.status).toBe(401);
@@ -84,7 +93,7 @@ describe("Auth", () => {
   describe("POST /api/auth/refresh", () => {
     it("emite novo token com refresh token valido", async () => {
       const login = await request(app).post("/api/auth/login").send({
-        email: "admin@test.com",
+        email: "admin@voxcred.com.br",
         password: "123456",
       });
       const res = await request(app)
@@ -104,7 +113,7 @@ describe("Auth", () => {
 
     it("rejeita uso duplo do mesmo refresh token", async () => {
       const login = await request(app).post("/api/auth/login").send({
-        email: "admin@test.com",
+        email: "admin@voxcred.com.br",
         password: "123456",
       });
       const rt = login.body.refreshToken;
@@ -117,7 +126,7 @@ describe("Auth", () => {
   describe("POST /api/auth/logout", () => {
     it("revoga o refresh token no logout", async () => {
       const login = await request(app).post("/api/auth/login").send({
-        email: "admin@test.com",
+        email: "admin@voxcred.com.br",
         password: "123456",
       });
       const rt = login.body.refreshToken;
@@ -130,14 +139,14 @@ describe("Auth", () => {
   describe("GET /api/auth/me", () => {
     it("retorna dados do usuario autenticado", async () => {
       const login = await request(app).post("/api/auth/login").send({
-        email: "admin@test.com",
+        email: "admin@voxcred.com.br",
         password: "123456",
       });
       const res = await request(app)
         .get("/api/auth/me")
         .set("Authorization", `Bearer ${login.body.token}`);
       expect(res.status).toBe(200);
-      expect(res.body.email).toBe("admin@test.com");
+      expect(res.body.email).toBe("admin@voxcred.com.br");
     });
 
     it("rejeita requisicao sem token", async () => {
