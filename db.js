@@ -60,6 +60,7 @@ db.exec(`
 
 // Migrations incrementais
 try { db.exec("ALTER TABLE users ADD COLUMN is_ti INTEGER DEFAULT 0"); } catch {}
+try { db.exec("ALTER TABLE users ADD COLUMN weekly_office_days INTEGER DEFAULT 3"); } catch {}
 
 db.exec(`
   CREATE TABLE IF NOT EXISTS ti_schedules (

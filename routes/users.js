@@ -1,15 +1,62 @@
 const express = require("express");
 const router = express.Router();
+const bcrypt = require("bcryptjs");
 const db = require("../db");
 const { authMiddleware, adminMiddleware } = require("../middleware/auth");
 const { auditLog } = require("../utils/audit");
+const { validateEmail, validateName, validatePassword } = require("../utils/validate");
 
 // Listar todos os usuários (admin)
 router.get("/", authMiddleware, adminMiddleware, (req, res) => {
   const users = db
-    .prepare("SELECT id, name, email, is_admin, is_ti, created_at FROM users ORDER BY created_at ASC")
+    .prepare("SELECT id, name, email, is_admin, is_ti, weekly_office_days, created_at FROM users ORDER BY created_at ASC")
     .all();
   res.json(users);
+});
+
+// Criar usuário (admin)
+router.post("/", authMiddleware, adminMiddleware, (req, res) => {
+  const { name, email, password } = req.body;
+  const nameErr = validateName(name);
+  if (nameErr) return res.status(400).json({ error: nameErr });
+  const emailErr = validateEmail(email);
+  if (emailErr) return res.status(400).json({ error: emailErr });
+  const passErr = validatePassword(password);
+  if (passErr) return res.status(400).json({ error: passErr });
+
+  const hash = bcrypt.hashSync(password, 10);
+  try {
+    const result = db
+      .prepare("INSERT INTO users (name, email, password_hash, is_admin, weekly_office_days) VALUES (?, ?, ?, 0, 3)")
+      .run(name.trim(), email.trim().toLowerCase(), hash);
+
+    const user = db
+      .prepare("SELECT id, name, email, is_admin, is_ti, weekly_office_days FROM users WHERE id = ?")
+      .get(result.lastInsertRowid);
+
+    auditLog(req.user.id, req.user.name, "create_user", "user", user.id, { name: user.name, email: user.email });
+    res.json(user);
+  } catch (e) {
+    if (e.message.includes("UNIQUE"))
+      return res.status(409).json({ error: "E-mail já cadastrado" });
+    res.status(500).json({ error: "Erro interno" });
+  }
+});
+
+// Alterar limite semanal de dias no escritório (admin)
+router.put("/:id/weekly-days", authMiddleware, adminMiddleware, (req, res) => {
+  const days = parseInt(req.body.days, 10);
+  if (!Number.isInteger(days) || days < 1 || days > 5) {
+    return res.status(400).json({ error: "Dias deve ser um número entre 1 e 5" });
+  }
+  const user = db.prepare("SELECT * FROM users WHERE id = ?").get(req.params.id);
+  if (!user) return res.status(404).json({ error: "Usuário não encontrado" });
+
+  db.prepare("UPDATE users SET weekly_office_days = ? WHERE id = ?").run(days, user.id);
+  auditLog(req.user.id, req.user.name, "set_weekly_days", "user", user.id, {
+    name: user.name, weekly_office_days: days,
+  });
+  res.json({ ok: true, weekly_office_days: days });
 });
 
 // Alternar TI (admin)
@@ -18,7 +65,7 @@ router.put("/:id/toggle-ti", authMiddleware, adminMiddleware, (req, res) => {
   if (!user) return res.status(404).json({ error: "Usuário não encontrado" });
   db.prepare("UPDATE users SET is_ti = ? WHERE id = ?").run(user.is_ti ? 0 : 1, user.id);
   const updated = db
-    .prepare("SELECT id, name, email, is_admin, is_ti FROM users WHERE id = ?")
+    .prepare("SELECT id, name, email, is_admin, is_ti, weekly_office_days FROM users WHERE id = ?")
     .get(user.id);
   auditLog(req.user.id, req.user.name, "toggle_ti", "user", user.id, {
     name: user.name, is_ti: !user.is_ti,

@@ -436,7 +436,12 @@ async function loadUsers() {
     const users = await API.get("/users");
     tbody.innerHTML = users
       .map(
-        (u) => `
+        (u) => {
+          const days = u.weekly_office_days ?? 3;
+          const daysSelect = `<select onchange="setWeeklyDays(${u.id}, +this.value)" style="border:1px solid var(--border);border-radius:var(--radius);padding:.2rem .4rem;font-size:.8125rem;background:var(--surface)">
+            ${[1,2,3,4,5].map(n => `<option value="${n}"${days===n?" selected":""}>${n}</option>`).join("")}
+          </select>`;
+          return `
       <tr>
         <td>${escapeHtml(u.name)}</td>
         <td>${escapeHtml(u.email)}</td>
@@ -448,6 +453,7 @@ async function loadUsers() {
         <td>
           ${u.is_ti ? '<span class="badge badge-blue">TI</span>' : '<span class="badge badge-gray">—</span>'}
         </td>
+        <td>${daysSelect}</td>
         <td style="display:flex;gap:.5rem;flex-wrap:wrap;">
           ${
             u.id !== user.id
@@ -464,11 +470,51 @@ async function loadUsers() {
           }
         </td>
       </tr>
-    `
+    `;
+        }
       )
       .join("");
   } catch (err) {
-    tbody.innerHTML = `<tr><td colspan="4" class="empty-state">${err.message}</td></tr>`;
+    tbody.innerHTML = `<tr><td colspan="6" class="empty-state">${err.message}</td></tr>`;
+  }
+}
+
+function showCreateUser() {
+  document.getElementById("modal-create-user").classList.add("open");
+}
+
+function closeCreateUser() {
+  document.getElementById("modal-create-user").classList.remove("open");
+  document.getElementById("new-user-name").value = "";
+  document.getElementById("new-user-email").value = "";
+  document.getElementById("new-user-password").value = "";
+}
+
+async function submitCreateUser() {
+  const name = document.getElementById("new-user-name").value.trim();
+  const email = document.getElementById("new-user-email").value.trim();
+  const password = document.getElementById("new-user-password").value;
+  if (!name || !email || !password) {
+    showToast("Preencha todos os campos", "error");
+    return;
+  }
+  try {
+    await API.post("/users", { name, email, password });
+    showToast("Usuário criado com sucesso");
+    closeCreateUser();
+    loadUsers();
+  } catch (err) {
+    showToast(err.message, "error");
+  }
+}
+
+async function setWeeklyDays(id, days) {
+  try {
+    await API.put(`/users/${id}/weekly-days`, { days });
+    showToast(`Limite atualizado para ${days} dia${days > 1 ? "s" : ""}/semana`);
+  } catch (err) {
+    showToast(err.message, "error");
+    loadUsers();
   }
 }
 

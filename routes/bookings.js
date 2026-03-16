@@ -225,7 +225,7 @@ router.post("/", authMiddleware, async (req, res) => {
   const myBooking = db.prepare("SELECT id FROM bookings WHERE user_id = ? AND date = ?").get(req.user.id, date);
   if (myBooking) return res.status(409).json({ error: "Você já tem uma reserva nesta data" });
 
-  // Limite de 3 reservas por semana (Seg-Sex)
+  // Limite semanal configurável por usuário (Seg-Sex)
   const ref = new Date(date + "T12:00:00Z");
   const diffToMon = ref.getUTCDay() === 0 ? -6 : 1 - ref.getUTCDay();
   const weekStart = new Date(ref);
@@ -235,8 +235,10 @@ router.post("/", authMiddleware, async (req, res) => {
   const weeklyCount = db.prepare(
     "SELECT COUNT(*) as cnt FROM bookings WHERE user_id = ? AND date >= ? AND date <= ?"
   ).get(req.user.id, weekStart.toISOString().split("T")[0], weekEnd.toISOString().split("T")[0]).cnt;
-  if (weeklyCount >= 3) {
-    return res.status(409).json({ error: "Limite de 3 reservas por semana atingido" });
+  const { weekly_office_days } = db.prepare("SELECT weekly_office_days FROM users WHERE id = ?").get(req.user.id);
+  const maxDays = weekly_office_days ?? 3;
+  if (weeklyCount >= maxDays) {
+    return res.status(409).json({ error: `Limite de ${maxDays} dia${maxDays > 1 ? "s" : ""} por semana no escritório atingido` });
   }
 
   try {
@@ -362,7 +364,9 @@ router.post("/admin", authMiddleware, adminMiddleware, async (req, res) => {
   const weeklyCount = db.prepare(
     "SELECT COUNT(*) as cnt FROM bookings WHERE user_id = ? AND date >= ? AND date <= ?"
   ).get(user_id, weekStart.toISOString().split("T")[0], weekEnd.toISOString().split("T")[0]).cnt;
-  if (weeklyCount >= 3) return res.status(409).json({ error: "Limite de 3 reservas por semana atingido para este usuário" });
+  const { weekly_office_days: targetMaxDays } = db.prepare("SELECT weekly_office_days FROM users WHERE id = ?").get(user_id);
+  const maxDaysAdmin = targetMaxDays ?? 3;
+  if (weeklyCount >= maxDaysAdmin) return res.status(409).json({ error: `Limite de ${maxDaysAdmin} dia${maxDaysAdmin > 1 ? "s" : ""} por semana atingido para este usuário` });
 
   try {
     const result = db.prepare("INSERT INTO bookings (user_id, desk_id, date) VALUES (?, ?, ?)").run(user_id, deskIdInt, date);

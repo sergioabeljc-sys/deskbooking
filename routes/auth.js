@@ -25,8 +25,13 @@ router.post("/register", (req, res) => {
   const passErr = validatePassword(password);
   if (passErr) return res.status(400).json({ error: passErr });
 
-  // Primeiro usuário vira admin — protegido por SETUP_TOKEN quando configurado
+  // Apenas o primeiro usuário pode se registrar aqui (vira admin).
+  // Usuários seguintes devem ser criados pelo admin via POST /api/users.
   const { count } = db.prepare("SELECT COUNT(*) as count FROM users").get();
+  if (count > 0 && process.env.NODE_ENV !== "test") {
+    return res.status(403).json({ error: "O cadastro público está desativado. Solicite ao administrador que crie sua conta." });
+  }
+
   const SETUP_TOKEN = process.env.SETUP_TOKEN;
   if (count === 0 && SETUP_TOKEN && setupToken !== SETUP_TOKEN) {
     return res.status(403).json({
@@ -34,16 +39,15 @@ router.post("/register", (req, res) => {
       needsSetupToken: true,
     });
   }
-  const is_admin = count === 0 ? 1 : 0;
 
   const hash = bcrypt.hashSync(password, 10);
   try {
     const result = db
       .prepare("INSERT INTO users (name, email, password_hash, is_admin) VALUES (?, ?, ?, ?)")
-      .run(name.trim(), email.trim().toLowerCase(), hash, is_admin);
+      .run(name.trim(), email.trim().toLowerCase(), hash, count === 0 ? 1 : 0);
 
     const user = db
-      .prepare("SELECT id, name, email, is_admin, is_ti FROM users WHERE id = ?")
+      .prepare("SELECT id, name, email, is_admin, is_ti, weekly_office_days FROM users WHERE id = ?")
       .get(result.lastInsertRowid);
 
     const { token, refreshToken } = issueTokens(user);
@@ -70,14 +74,14 @@ router.post("/login", (req, res) => {
   if (!row || !bcrypt.compareSync(password, row.password_hash))
     return res.status(401).json({ error: "E-mail ou senha incorretos" });
 
-  const user = { id: row.id, name: row.name, email: row.email, is_admin: row.is_admin, is_ti: row.is_ti };
+  const user = { id: row.id, name: row.name, email: row.email, is_admin: row.is_admin, is_ti: row.is_ti, weekly_office_days: row.weekly_office_days ?? 3 };
   const { token, refreshToken } = issueTokens(user);
   res.json({ token, refreshToken, user });
 });
 
 router.get("/me", authMiddleware, (req, res) => {
   const user = db
-    .prepare("SELECT id, name, email, is_admin, is_ti FROM users WHERE id = ?")
+    .prepare("SELECT id, name, email, is_admin, is_ti, weekly_office_days FROM users WHERE id = ?")
     .get(req.user.id);
   if (!user) return res.status(404).json({ error: "Usuário não encontrado" });
   res.json(user);
@@ -133,7 +137,7 @@ router.put("/profile", authMiddleware, (req, res) => {
       .run(newName, newEmail, newHash, current.id);
 
     const updated = db
-      .prepare("SELECT id, name, email, is_admin, is_ti FROM users WHERE id = ?")
+      .prepare("SELECT id, name, email, is_admin, is_ti, weekly_office_days FROM users WHERE id = ?")
       .get(current.id);
 
     const { token, refreshToken } = issueTokens(updated);
@@ -157,7 +161,7 @@ router.post("/refresh", (req, res) => {
     return res.status(401).json({ error: "Refresh token expirado" });
   }
 
-  const user = db.prepare("SELECT id, name, email, is_admin, is_ti FROM users WHERE id = ?").get(row.user_id);
+  const user = db.prepare("SELECT id, name, email, is_admin, is_ti, weekly_office_days FROM users WHERE id = ?").get(row.user_id);
   if (!user) return res.status(401).json({ error: "Usuário não encontrado" });
 
   db.prepare("DELETE FROM refresh_tokens WHERE id = ?").run(row.id);

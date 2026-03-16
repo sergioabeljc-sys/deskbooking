@@ -127,7 +127,10 @@
 
     <div id="tab-users" style="display:none">
       <div class="card">
-        <div class="card-header">Usuários</div>
+        <div class="card-header">
+          Usuários
+          <button class="btn btn-primary btn-sm" onclick="showCreateUser()">+ Criar Usuário</button>
+        </div>
         <div class="table-wrap">
           <table>
             <thead>
@@ -136,11 +139,12 @@
                 <th>E-mail</th>
                 <th>Perfil</th>
                 <th>TI</th>
+                <th>Dias/sem</th>
                 <th></th>
               </tr>
             </thead>
             <tbody id="users-body">
-              <tr><td colspan="4" class="empty-state">Carregando...</td></tr>
+              <tr><td colspan="6" class="empty-state">Carregando...</td></tr>
             </tbody>
           </table>
         </div>
@@ -247,6 +251,29 @@
       <div class="modal-actions">
         <button class="btn btn-primary" onclick="submitAddDesk()">Criar</button>
         <button class="btn btn-ghost" onclick="closeModal()">Cancelar</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Modal: Criar Usuário -->
+  <div id="modal-create-user" class="modal-overlay">
+    <div class="modal-box">
+      <div class="modal-title">Criar Usuário</div>
+      <div class="form-group">
+        <label>Nome</label>
+        <input type="text" id="new-user-name" placeholder="Nome completo" />
+      </div>
+      <div class="form-group">
+        <label>E-mail</label>
+        <input type="email" id="new-user-email" placeholder="email@empresa.com" />
+      </div>
+      <div class="form-group">
+        <label>Senha</label>
+        <input type="password" id="new-user-password" placeholder="Mínimo 6 caracteres" />
+      </div>
+      <div class="modal-actions">
+        <button class="btn btn-primary" onclick="submitCreateUser()">Criar</button>
+        <button class="btn btn-ghost" onclick="closeCreateUser()">Cancelar</button>
       </div>
     </div>
   </div>
