@@ -55,19 +55,109 @@ function getInitials(name) {
   return (parts[0][0] + parts[parts.length - 1][0]).toUpperCase();
 }
 
+// "Carlos Silva" → "Carlos" (para espaços pequenos como o assento SVG)
+function firstNameOf(name) {
+  return name.trim().split(/\s+/)[0];
+}
+
+// "Carlos Silva" → "Carlos S." (para semana e outros contextos médios)
+function shortName(name) {
+  const parts = name.trim().split(/\s+/);
+  if (parts.length === 1) return parts[0];
+  return parts[0] + " " + parts[1][0] + ".";
+}
+
 function renderAvatar(name, size = 28) {
   const hue = nameToHue(name);
   const initials = getInitials(name);
   return `<span class="desk-avatar" style="--avatar-hue:${hue};width:${size}px;height:${size}px;font-size:${Math.round(size * 0.38)}px" title="${escapeHtml(name)}">${escapeHtml(initials)}</span>`;
 }
 
-// ─── Day view ─────────────────────────────────────────────────────────────────
+// ─── Day view — table SVG ─────────────────────────────────────────────────────
+function renderTableSVG(desks, bookingMap) {
+  const sorted = [...desks].sort((a, b) => a.id - b.id);
+  const leftDesks  = sorted.slice(0, 5);
+  const rightDesks = sorted.slice(5, 10);
+
+  const LEFT_CX  = 84;
+  const RIGHT_CX = 236;
+  const SEAT_Y   = [68, 148, 228, 308, 388];
+
+  const C = {
+    available: { fill: "#22c55e", stroke: "#16a34a", text: "#fff" },
+    mine:      { fill: "#3b82f6", stroke: "#1d4ed8", text: "#fff" },
+    booked:    { fill: "#94a3b8", stroke: "#64748b", text: "#fff" },
+    inactive:  { fill: "#e2e8f0", stroke: "#cbd5e1", text: "#94a3b8" },
+  };
+
+  function seatState(desk) {
+    if (!desk.is_active) return "inactive";
+    const b = bookingMap[desk.id];
+    if (!b) return "available";
+    return b.user_id === user.id ? "mine" : "booked";
+  }
+
+  function seatContent(desk, cx, cy, state) {
+    const c = C[state];
+    if (state === "inactive") {
+      return `<text x="${cx}" y="${cy}" text-anchor="middle" dominant-baseline="middle" fill="${c.text}" font-size="18" font-family="sans-serif">—</text>`;
+    }
+    if (state === "available") {
+      const num = desk.name.replace(/\D+/g, "") || desk.name.slice(0, 2);
+      return `<text x="${cx}" y="${cy}" text-anchor="middle" dominant-baseline="middle" fill="${c.text}" font-size="13" font-weight="600" font-family="sans-serif">${escapeHtml(num)}</text>`;
+    }
+    // Booked or mine: show first name, font-size adapts to length
+    const rawName = state === "mine" ? user.name : bookingMap[desk.id].user_name;
+    const label = firstNameOf(rawName);
+    const fs = label.length <= 5 ? 11 : label.length <= 7 ? 10 : 9;
+    return `<text x="${cx}" y="${cy}" text-anchor="middle" dominant-baseline="middle" fill="${c.text}" font-size="${fs}" font-weight="700" font-family="sans-serif">${escapeHtml(label)}</text>`;
+  }
+
+  function renderSeat(desk, cx, cy, side) {
+    const state = seatState(desk);
+    const c = C[state];
+    const backX = side === "left" ? cx - 40 : cx + 26;
+    const backFill = state === "inactive" ? "#e2e8f0" : "#94a3b8";
+    const booking = bookingMap[desk.id];
+    const occupantName = state === "mine" ? "Você" : state === "booked" ? (booking?.user_name ?? "") : state === "available" ? "Disponível" : "Inativa";
+    const titleTxt = `${desk.name} — ${occupantName}`;
+
+    return `<g class="desk-seat desk-seat-${state}" data-desk-id="${desk.id}">
+      <title>${escapeHtml(titleTxt)}</title>
+      <rect x="${backX}" y="${cy - 19}" width="14" height="38" rx="4" fill="${backFill}"/>
+      <rect class="seat-fill" x="${cx - 26}" y="${cy - 26}" width="52" height="52" rx="8" fill="${c.fill}" stroke="${c.stroke}" stroke-width="1.5"/>
+      ${seatContent(desk, cx, cy, state)}
+      <text x="${cx}" y="${cy + 44}" text-anchor="middle" fill="#64748b" font-size="9.5" font-family="sans-serif">${escapeHtml(desk.name)}</text>
+    </g>`;
+  }
+
+  let grain = "";
+  for (let i = 0; i < 7; i++) {
+    grain += `<line x1="144" y1="${53 + i * 58}" x2="176" y2="${53 + i * 58}" stroke="#9a6f3a" stroke-width="0.6" opacity="0.35"/>`;
+  }
+
+  return `<svg viewBox="0 0 320 460" xmlns="http://www.w3.org/2000/svg" style="width:100%;max-width:340px;display:block;margin:0 auto" aria-label="Mapa da mesa">
+    <!-- Janela -->
+    <rect x="95" y="0" width="130" height="28" rx="3" fill="#bfdbfe" stroke="#93c5fd" stroke-width="1.5"/>
+    <text x="160" y="18" text-anchor="middle" fill="#1d4ed8" font-size="11" font-weight="600" font-family="sans-serif">JANELA</text>
+    <!-- Peitoril -->
+    <rect x="88" y="26" width="144" height="7" rx="1" fill="#94a3b8"/>
+    <!-- Mesa -->
+    <rect x="140" y="33" width="40" height="400" rx="5" fill="#c8a068" stroke="#9a6f3a" stroke-width="1.5"/>
+    ${grain}
+    <!-- Posições esquerda -->
+    ${leftDesks.map((d, i) => renderSeat(d, LEFT_CX, SEAT_Y[i], "left")).join("\n    ")}
+    <!-- Posições direita -->
+    ${rightDesks.map((d, i) => renderSeat(d, RIGHT_CX, SEAT_Y[i], "right")).join("\n    ")}
+  </svg>`;
+}
+
 async function loadDesks() {
   const date = dateInput.value;
   if (!date) return;
 
   const grid = document.getElementById("desk-grid");
-  grid.innerHTML = '<p style="grid-column:1/-1;color:var(--text-muted)">Carregando...</p>';
+  grid.innerHTML = '<p style="color:var(--text-muted);padding:.5rem">Carregando...</p>';
 
   try {
     const [desks, bookings] = await Promise.all([
@@ -78,41 +168,19 @@ async function loadDesks() {
     const bookingMap = {};
     bookings.forEach((b) => { bookingMap[b.desk_id] = b; });
 
-    const maxX = desks.reduce((m, d) => Math.max(m, d.pos_x), 0);
-    grid.style.gridTemplateColumns = `repeat(${maxX}, 1fr)`;
-    grid.innerHTML = "";
+    grid.innerHTML = renderTableSVG(desks, bookingMap);
 
-    desks.forEach((desk) => {
-      const booking = bookingMap[desk.id];
-      const isMine = booking && booking.user_id === user.id;
-      const isBooked = !!booking && !isMine;
-      const isInactive = !desk.is_active;
-
-      const cell = document.createElement("div");
-      cell.className =
-        "desk-cell " +
-        (isInactive ? "inactive" : isMine ? "mine" : isBooked ? "booked" : "available");
-      cell.style.gridColumn = desk.pos_x;
-      cell.style.gridRow = desk.pos_y;
-
-      const avatarHtml = booking
-        ? renderAvatar(isMine ? user.name : booking.user_name, 28)
-        : `<span class="desk-icon">${isInactive ? "🚫" : "🪑"}</span>`;
-
-      cell.innerHTML = `
-        ${avatarHtml}
-        <span>${escapeHtml(desk.name)}</span>
-        ${booking ? `<span class="desk-bookedby">${isMine ? "Você" : escapeHtml(booking.user_name)}</span>` : ""}
-      `;
-
-      if (!isBooked && !isInactive && !isMine) {
-        cell.addEventListener("click", () => bookDesk(desk, date));
-      }
-
-      grid.appendChild(cell);
+    // Attach click handlers
+    grid.querySelectorAll(".desk-seat-available[data-desk-id]").forEach((el) => {
+      const desk = desks.find((d) => d.id === +el.dataset.deskId);
+      el.addEventListener("click", () => bookDesk(desk, date));
+    });
+    grid.querySelectorAll(".desk-seat-mine[data-desk-id]").forEach((el) => {
+      const booking = bookingMap[+el.dataset.deskId];
+      el.addEventListener("click", () => cancelBooking(booking.id));
     });
   } catch (err) {
-    grid.innerHTML = `<p style="grid-column:1/-1;color:var(--danger)">${err.message}</p>`;
+    grid.innerHTML = `<p style="color:var(--danger);padding:.5rem">${err.message}</p>`;
   }
 }
 
@@ -240,8 +308,8 @@ async function loadWeekView() {
 
         let inner = "";
         if (isInactive) inner = '<span class="week-cell-icon">🚫</span>';
-        else if (isMine) inner = renderAvatar(user.name, 22) + `<span class="week-cell-label">Você</span>`;
-        else if (isBooked) inner = renderAvatar(booking.user_name, 22) + `<span class="week-cell-label">${escapeHtml(booking.user_name.split(" ")[0])}</span>`;
+        else if (isMine) inner = renderAvatar(user.name, 22) + `<span class="week-cell-label">${escapeHtml(shortName(user.name))}</span>`;
+        else if (isBooked) inner = renderAvatar(booking.user_name, 22) + `<span class="week-cell-label">${escapeHtml(shortName(booking.user_name))}</span>`;
         else if (!isPast) inner = '<span class="week-cell-icon" style="opacity:.4">🪑</span>';
 
         html += `<div class="${cls}"${clickable ? ` data-desk-id="${desk.id}" data-desk-name="${escapeHtml(desk.name)}" data-date="${iso}" style="cursor:pointer"` : ""}>${inner}</div>`;
