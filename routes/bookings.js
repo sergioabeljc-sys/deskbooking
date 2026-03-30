@@ -2,7 +2,6 @@ const express = require("express");
 const router = express.Router();
 const db = require("../db");
 const { authMiddleware, adminMiddleware } = require("../middleware/auth");
-const { sendBookingConfirmation, sendBookingCancellation } = require("../services/email");
 const { auditLog } = require("../utils/audit");
 
 // Exportar reservas CSV (admin) — deve vir antes de /:id para evitar conflito
@@ -255,14 +254,6 @@ router.post("/", authMiddleware, async (req, res) => {
       WHERE b.id = ?
     `).get(result.lastInsertRowid);
 
-    // Send confirmation email (non-blocking)
-    sendBookingConfirmation({
-      to: booking.user_email,
-      name: booking.user_name,
-      deskName: booking.desk_name,
-      date: booking.date,
-    });
-
     // Se o usuário for TI, registra automaticamente como SP na programação TI
     const userRow = db.prepare("SELECT is_ti FROM users WHERE id = ?").get(req.user.id);
     if (userRow?.is_ti) {
@@ -309,13 +300,6 @@ router.delete("/:id", authMiddleware, async (req, res) => {
     });
   }
 
-  // Send cancellation email (non-blocking)
-  sendBookingCancellation({
-    to: booking.user_email,
-    name: booking.user_name,
-    deskName: booking.desk_name,
-    date: booking.date,
-  });
 
   // Se o dono da reserva for TI e tinha SP declarado, remove a declaração automática
   const ownerRow = db.prepare("SELECT is_ti FROM users WHERE id = ?").get(booking.user_id);
@@ -376,8 +360,6 @@ router.post("/admin", authMiddleware, adminMiddleware, async (req, res) => {
       FROM bookings b JOIN users u ON b.user_id = u.id JOIN desks d ON b.desk_id = d.id
       WHERE b.id = ?
     `).get(result.lastInsertRowid);
-
-    sendBookingConfirmation({ to: booking.user_email, name: booking.user_name, deskName: booking.desk_name, date: booking.date });
 
     auditLog(req.user.id, req.user.name, "create_booking_admin", "booking", result.lastInsertRowid, {
       desk: desk.name, date, user: targetUser.name,

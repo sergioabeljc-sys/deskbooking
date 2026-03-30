@@ -2,7 +2,6 @@ const express = require("express");
 const router = express.Router();
 const db = require("../db");
 const { authMiddleware, adminMiddleware } = require("../middleware/auth");
-const { sendBookingCancellation } = require("../services/email");
 const { auditLog } = require("../utils/audit");
 
 function tiMiddleware(req, res, next) {
@@ -37,12 +36,6 @@ function cancelBookingForDate(userId, date) {
 
   if (!booking) return false;
   db.prepare("DELETE FROM bookings WHERE id = ?").run(booking.id);
-  sendBookingCancellation({
-    to: booking.user_email,
-    name: booking.user_name,
-    deskName: booking.desk_name,
-    date: booking.date,
-  });
   return true;
 }
 
