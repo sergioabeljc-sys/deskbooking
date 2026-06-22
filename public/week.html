@@ -1,0 +1,328 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Presenças Semanais — Desk Booking</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      background: #f0f2f5;
+      color: #1a1a2e;
+      min-height: 100vh;
+    }
+
+    /* ── Header ───────────────────────────────────────────────────────────── */
+    header {
+      background: #1e3a5f;
+      color: #fff;
+      padding: 0 24px;
+      height: 56px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      box-shadow: 0 2px 8px rgba(0,0,0,.25);
+    }
+    header h1 { font-size: 1.1rem; font-weight: 600; letter-spacing: .3px; }
+    header nav { display: flex; gap: 12px; align-items: center; }
+    header nav a {
+      color: rgba(255,255,255,.8);
+      text-decoration: none;
+      font-size: .85rem;
+      padding: 4px 10px;
+      border-radius: 4px;
+      transition: background .15s;
+    }
+    header nav a:hover { background: rgba(255,255,255,.15); color: #fff; }
+    #user-badge {
+      font-size: .8rem;
+      background: rgba(255,255,255,.15);
+      padding: 4px 10px;
+      border-radius: 12px;
+    }
+
+    /* ── Week nav ─────────────────────────────────────────────────────────── */
+    .week-nav {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 16px;
+      padding: 20px 24px 12px;
+    }
+    .week-nav button {
+      background: #1e3a5f;
+      color: #fff;
+      border: none;
+      border-radius: 6px;
+      padding: 6px 14px;
+      cursor: pointer;
+      font-size: .9rem;
+      transition: background .15s;
+    }
+    .week-nav button:hover { background: #2d5590; }
+    #week-label {
+      font-size: 1rem;
+      font-weight: 600;
+      min-width: 260px;
+      text-align: center;
+      color: #1e3a5f;
+    }
+    .today-btn {
+      background: transparent !important;
+      color: #1e3a5f !important;
+      border: 1px solid #1e3a5f !important;
+      font-size: .8rem !important;
+      padding: 5px 12px !important;
+    }
+
+    /* ── Columns ──────────────────────────────────────────────────────────── */
+    .week-grid {
+      display: grid;
+      grid-template-columns: repeat(5, 1fr);
+      gap: 12px;
+      padding: 0 24px 32px;
+    }
+
+    .day-col {
+      background: #fff;
+      border-radius: 10px;
+      box-shadow: 0 1px 4px rgba(0,0,0,.08);
+      overflow: hidden;
+      min-height: 300px;
+    }
+
+    .day-header {
+      background: #1e3a5f;
+      color: #fff;
+      padding: 12px 14px;
+      cursor: pointer;
+      transition: background .15s;
+    }
+    .day-header:hover { background: #2d5590; }
+    .day-header .day-name { font-size: .85rem; font-weight: 600; text-transform: uppercase; letter-spacing: .5px; }
+    .day-header .day-date { font-size: 1.4rem; font-weight: 700; line-height: 1.1; margin-top: 2px; }
+    .day-header .day-count {
+      font-size: .75rem;
+      margin-top: 4px;
+      opacity: .8;
+    }
+    .day-header.today-col { background: #0d6efd; }
+
+    .people-list { padding: 10px; display: flex; flex-direction: column; gap: 8px; }
+
+    .person-card {
+      border: 1px solid #e8ecf0;
+      border-radius: 8px;
+      padding: 10px 12px;
+      background: #fafbfc;
+      transition: box-shadow .15s;
+    }
+    .person-card:hover { box-shadow: 0 2px 8px rgba(0,0,0,.1); }
+
+    .person-name { font-size: .9rem; font-weight: 600; margin-bottom: 2px; }
+    .person-email { font-size: .75rem; color: #6c757d; margin-bottom: 6px; word-break: break-all; }
+    .person-meta { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 4px; }
+
+    .company-badge {
+      font-size: .68rem;
+      font-weight: 600;
+      padding: 2px 7px;
+      border-radius: 10px;
+      text-transform: uppercase;
+      letter-spacing: .3px;
+    }
+    .badge-tenda { background: #d4edda; color: #155724; }
+    .badge-voxcred { background: #cce5ff; color: #004085; }
+    .badge-unknown { background: #e2e3e5; color: #383d41; }
+
+    .person-time { font-size: .75rem; color: #495057; }
+
+    .empty-col {
+      padding: 20px 14px;
+      text-align: center;
+      color: #adb5bd;
+      font-size: .85rem;
+    }
+
+    /* ── Loading / Error states ───────────────────────────────────────────── */
+    .loading { text-align: center; padding: 60px; color: #6c757d; font-size: .95rem; }
+    .error-msg {
+      background: #f8d7da;
+      color: #721c24;
+      border-radius: 8px;
+      padding: 14px 20px;
+      margin: 20px 24px;
+      font-size: .9rem;
+    }
+
+    @media (max-width: 900px) {
+      .week-grid { grid-template-columns: repeat(2, 1fr); }
+    }
+    @media (max-width: 600px) {
+      .week-grid { grid-template-columns: 1fr; }
+    }
+  </style>
+</head>
+<body>
+
+<header>
+  <h1>Desk Booking — Presenças</h1>
+  <nav>
+    <a href="/spot-booking.html">+ Reservar Vaga</a>
+    <a href="/rooms.html">Salas</a>
+    <a href="#" id="logout-btn">Sair</a>
+    <span id="user-badge">—</span>
+  </nav>
+</header>
+
+<div class="week-nav">
+  <button id="prev-week">&#8592; Semana Anterior</button>
+  <span id="week-label">Carregando...</span>
+  <button class="today-btn" id="today-btn">Hoje</button>
+  <button id="next-week">Próxima Semana &#8594;</button>
+</div>
+
+<div id="root">
+  <div class="loading">Carregando presenças...</div>
+</div>
+
+<script>
+  const DAY_NAMES = ["Segunda", "Terça", "Quarta", "Quinta", "Sexta"];
+  const MONTH_NAMES = ["Jan","Fev","Mar","Abr","Mai","Jun","Jul","Ago","Set","Out","Nov","Dez"];
+
+  const token = localStorage.getItem("token");
+  if (!token) { location.href = "/login.html"; }
+
+  // Decodifica payload do JWT (sem verificar assinatura, apenas para exibição)
+  function parseJwt(t) {
+    try { return JSON.parse(atob(t.split(".")[1])); } catch { return {}; }
+  }
+  const me = parseJwt(token);
+  document.getElementById("user-badge").textContent = me.name || me.email || "Usuário";
+
+  document.getElementById("logout-btn").addEventListener("click", (e) => {
+    e.preventDefault();
+    localStorage.removeItem("token");
+    location.href = "/login.html";
+  });
+
+  // ── Date helpers ──────────────────────────────────────────────────────────
+  function toISO(d) { return d.toISOString().slice(0, 10); }
+
+  function getMonday(d) {
+    const day = d.getDay();
+    const diff = day === 0 ? -6 : 1 - day;
+    const m = new Date(d);
+    m.setDate(d.getDate() + diff);
+    return m;
+  }
+
+  function formatWeekLabel(start) {
+    const s = new Date(start + "T12:00:00");
+    const e = new Date(s);
+    e.setDate(s.getDate() + 4);
+    return `${s.getDate()} ${MONTH_NAMES[s.getMonth()]} — ${e.getDate()} ${MONTH_NAMES[e.getMonth()]} ${e.getFullYear()}`;
+  }
+
+  // ── State ─────────────────────────────────────────────────────────────────
+  let currentMonday = getMonday(new Date());
+
+  // ── Fetch & render ─────────────────────────────────────────────────────────
+  async function loadWeek(monday) {
+    const start = toISO(monday);
+    document.getElementById("week-label").textContent = formatWeekLabel(start);
+    document.getElementById("root").innerHTML = '<div class="loading">Carregando...</div>';
+
+    let data;
+    try {
+      const res = await fetch(`/api/spots/week?start=${start}`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      if (res.status === 401) { localStorage.removeItem("token"); location.href = "/login.html"; return; }
+      if (!res.ok) throw new Error(`Erro ${res.status}`);
+      data = await res.json();
+    } catch (err) {
+      document.getElementById("root").innerHTML =
+        `<div class="error-msg">Não foi possível carregar as presenças: ${err.message}</div>`;
+      return;
+    }
+
+    const todayISO = toISO(new Date());
+
+    const cols = data.days.map((date, i) => {
+      const d = new Date(date + "T12:00:00");
+      const people = data.week[date] || [];
+      const isToday = date === todayISO;
+
+      const cards = people.length
+        ? people.map(p => {
+            const comp = (p.company || "").toLowerCase();
+            const badgeClass = comp.includes("tenda") ? "badge-tenda"
+                              : comp.includes("voxcred") || comp.includes("cartão") ? "badge-voxcred"
+                              : "badge-unknown";
+            const badgeLabel = comp.includes("tenda") ? "Tenda Atacado"
+                              : comp.includes("voxcred") || comp.includes("cartão") ? "Voxcred"
+                              : (p.company || "—");
+            return `
+              <div class="person-card">
+                <div class="person-name">${esc(p.name)}</div>
+                <div class="person-email">${esc(p.email)}</div>
+                <div class="person-meta">
+                  <span class="company-badge ${badgeClass}">${esc(badgeLabel)}</span>
+                  <span class="person-time">${p.start_time} – ${p.end_time}</span>
+                </div>
+              </div>`;
+          }).join("")
+        : `<div class="empty-col">Ninguém ainda</div>`;
+
+      return `
+        <div class="day-col">
+          <div class="day-header${isToday ? " today-col" : ""}" data-date="${date}">
+            <div class="day-name">${DAY_NAMES[i]}</div>
+            <div class="day-date">${d.getDate()} ${MONTH_NAMES[d.getMonth()]}</div>
+            <div class="day-count">${people.length} ${people.length === 1 ? "pessoa" : "pessoas"}</div>
+          </div>
+          <div class="people-list">${cards}</div>
+        </div>`;
+    });
+
+    document.getElementById("root").innerHTML =
+      `<div class="week-grid">${cols.join("")}</div>`;
+  }
+
+  function esc(s) {
+    return String(s || "").replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;");
+  }
+
+  // ── Navigation ─────────────────────────────────────────────────────────────
+  document.getElementById("prev-week").addEventListener("click", () => {
+    currentMonday.setDate(currentMonday.getDate() - 7);
+    loadWeek(currentMonday);
+  });
+
+  document.getElementById("next-week").addEventListener("click", () => {
+    currentMonday.setDate(currentMonday.getDate() + 7);
+    loadWeek(currentMonday);
+  });
+
+  document.getElementById("today-btn").addEventListener("click", () => {
+    currentMonday = getMonday(new Date());
+    loadWeek(currentMonday);
+  });
+
+  // SSO token on first load
+  const urlParams = new URLSearchParams(location.search);
+  const ssoToken = urlParams.get("sso_token");
+  if (ssoToken) {
+    localStorage.setItem("token", ssoToken);
+    history.replaceState(null, "", location.pathname);
+    location.reload();
+  }
+
+  loadWeek(currentMonday);
+</script>
+
+</body>
+</html>

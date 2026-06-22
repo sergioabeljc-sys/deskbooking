@@ -3,6 +3,7 @@
 const EMAIL_RE = /^[a-zA-Z0-9._%+\-]+@[a-zA-Z0-9.\-]+\.[a-zA-Z]{2,}$/;
 
 const ALLOWED_DOMAIN = "voxcred.com.br";
+const ALLOWED_REQUEST_DOMAINS = ["tendaatacado.com.br", "voxcred.com.br"];
 
 function validateEmail(email) {
   if (!email || typeof email !== "string") return "E-mail obrigatório";
@@ -36,4 +37,30 @@ function validatePosInt(value, label, min = 1, max = 50) {
   return null;
 }
 
-module.exports = { validateEmail, validateName, validatePassword, validatePosInt };
+// Valida e-mail para pedido de acesso: aceita ambos os domínios corporativos
+function validateRequestEmail(email) {
+  if (!email || typeof email !== "string") return "E-mail obrigatório";
+  if (email.length > 254) return "E-mail muito longo";
+  const normalized = email.trim().toLowerCase();
+  if (!EMAIL_RE.test(normalized)) return "Formato de e-mail inválido";
+  const isAllowed = ALLOWED_REQUEST_DOMAINS.some((d) => normalized.endsWith("@" + d));
+  if (!isAllowed) return "E-mail não autorizado";
+  return null;
+}
+
+// Retorna o domínio corporativo identificado pelo e-mail, ou null
+function companyFromEmail(email) {
+  const normalized = (email || "").trim().toLowerCase();
+  if (normalized.endsWith("@tendaatacado.com.br")) return "tenda";
+  if (normalized.endsWith("@voxcred.com.br")) return "voxcred";
+  return null;
+}
+
+module.exports = {
+  validateEmail,
+  validateRequestEmail,
+  companyFromEmail,
+  validateName,
+  validatePassword,
+  validatePosInt,
+};

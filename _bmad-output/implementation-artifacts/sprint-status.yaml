@@ -1,0 +1,76 @@
+# generated: 2026-06-22
+# last_updated: 2026-06-22
+# project: desk-booking
+# project_key: NOKEY
+# tracking_system: file-system
+# story_location: _bmad-output/implementation-artifacts/stories
+
+# STATUS DEFINITIONS:
+# ==================
+# Epic Status:
+#   - backlog: Epic not yet started
+#   - in-progress: Epic actively being worked on
+#   - done: All stories in epic completed
+#
+# Story Status:
+#   - backlog: Story only exists in epic file
+#   - ready-for-dev: Story file created in stories folder
+#   - in-progress: Developer actively working on implementation
+#   - review: Ready for code review
+#   - done: Story completed
+#
+# Retrospective Status:
+#   - optional: Can be completed but not required
+#   - done: Retrospective has been completed
+
+generated: 2026-06-22
+last_updated: 2026-06-22 (epics 4-5-6 completos — 201 testes passando)
+project: desk-booking
+project_key: NOKEY
+tracking_system: file-system
+story_location: _bmad-output/implementation-artifacts/stories
+
+development_status:
+
+  # ─── Epic 1: Fundação v2 — Migração e Infraestrutura ───────────────────────
+  epic-1: in-progress
+  1-1-scripts-de-migracao-do-schema-v2: review
+  1-2-middleware-rbac: review
+  1-3-modulo-de-email: review
+  epic-1-retrospective: optional
+
+  # ─── Epic 2: Autenticação SSO e Fluxo de Aprovação de Acesso ───────────────
+  epic-2: in-progress
+  2-1-fluxo-de-pedido-de-acesso: review
+  2-2-sso-entra-id-dois-tenants: review
+  2-3-painel-admin-aprovacao-de-acessos: review
+  epic-2-retrospective: optional
+
+  # ─── Epic 3: Salas de Reunião ───────────────────────────────────────────────
+  epic-3: in-progress
+  3-1-crud-de-salas-admin: review
+  3-2-reserva-de-sala-com-deteccao-de-conflito: review
+  3-3-cancelamento-de-reserva-de-sala: review
+  epic-3-retrospective: optional
+
+  # ─── Epic 4: Vagas no Escritório ────────────────────────────────────────────
+  epic-4: in-progress
+  4-1-gestao-de-mesas-fixas-e-rotativas-admin: review
+  4-2-configuracao-de-dias-rotativos-pelo-dono: review
+  4-3-controle-de-capacidade-de-vagas-rotativas: review
+  4-4-controle-de-departamentos-habilitados: review
+  4-5-reserva-de-vaga-no-escritorio: review
+  4-6-cancelamento-de-vaga: review
+  epic-4-retrospective: optional
+
+  # ─── Epic 5: Visão Semanal de Presenças ────────────────────────────────────
+  epic-5: in-progress
+  5-1-api-de-presencas-semanais: review
+  5-2-frontend-da-visao-semanal-tela-principal: review
+  epic-5-retrospective: optional
+
+  # ─── Epic 6: Notificações por E-mail ───────────────────────────────────────
+  epic-6: in-progress
+  6-1-notificacoes-de-reserva-e-cancelamento: review
+  6-2-notificacoes-do-fluxo-de-acesso: review
+  epic-6-retrospective: optional

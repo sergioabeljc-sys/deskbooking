@@ -1,5 +1,6 @@
 const Database = require("better-sqlite3");
 const path = require("path");
+const fs = require("fs");
 
 const dbPath =
   process.env.NODE_ENV === "test"
@@ -86,6 +87,43 @@ db.exec(`
     created_at TEXT DEFAULT (datetime('now'))
   );
 `);
+
+// ─── Sistema de Migrations Versionadas ───────────────────────────────────────
+db.exec(`
+  CREATE TABLE IF NOT EXISTS schema_version (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    filename TEXT NOT NULL UNIQUE,
+    applied_at TEXT NOT NULL DEFAULT (datetime('now'))
+  );
+`);
+
+const migrationsDir = path.join(__dirname, "db", "migrations");
+
+if (fs.existsSync(migrationsDir)) {
+  const files = fs
+    .readdirSync(migrationsDir)
+    .filter((f) => f.endsWith(".sql"))
+    .sort();
+
+  const applied = db
+    .prepare("SELECT filename FROM schema_version")
+    .all()
+    .map((r) => r.filename);
+
+  const runMigration = db.transaction((filename, sql) => {
+    db.exec(sql);
+    db.prepare("INSERT INTO schema_version (filename) VALUES (?)").run(filename);
+  });
+
+  for (const file of files) {
+    if (!applied.includes(file)) {
+      const sql = fs.readFileSync(path.join(migrationsDir, file), "utf8");
+      runMigration(file, sql);
+      console.log(`[db] Migration aplicada: ${file}`);
+    }
+  }
+}
+// ─────────────────────────────────────────────────────────────────────────────
 
 // Seed default desks if none exist
 const deskCount = db.prepare("SELECT COUNT(*) as count FROM desks").get();

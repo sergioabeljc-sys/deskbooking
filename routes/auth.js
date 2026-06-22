@@ -5,7 +5,9 @@ const jwt = require("jsonwebtoken");
 const crypto = require("crypto");
 const db = require("../db");
 const { SECRET, authMiddleware } = require("../middleware/auth");
-const { validateEmail, validateName, validatePassword } = require("../utils/validate");
+const { validateEmail, validateRequestEmail, companyFromEmail, validateName, validatePassword } = require("../utils/validate");
+const { sendEmail } = require("../services/emailService");
+const ssoService = require("../services/ssoService");
 
 function issueTokens(user) {
   const token = jwt.sign(user, SECRET, { expiresIn: "1h" });
@@ -169,12 +171,140 @@ router.post("/refresh", (req, res) => {
   res.json({ token, refreshToken: newRefreshToken, user });
 });
 
+// ─── Pedido de acesso (v2) ────────────────────────────────────────────────────
+router.post("/request-access", (req, res) => {
+  const { email } = req.body;
+  const err = validateRequestEmail(email);
+  if (err) {
+    // Resposta genérica para não revelar lógica interna de domínios
+    return res.status(400).json({ error: "E-mail inválido ou não autorizado." });
+  }
+
+  const normalized = email.trim().toLowerCase();
+  const company = companyFromEmail(normalized);
+
+  // Pedido já existente com status pending — retorna 200 sem duplicar
+  const existing = db
+    .prepare("SELECT id, status FROM access_requests WHERE email = ?")
+    .get(normalized);
+
+  if (existing && existing.status === "pending") {
+    return res.json({ ok: true });
+  }
+
+  // Se já foi aprovado ou recusado anteriormente, cria novo pedido (sobrescreve)
+  if (existing) {
+    db.prepare("DELETE FROM access_requests WHERE email = ?").run(normalized);
+  }
+
+  db.prepare("INSERT INTO access_requests (email, company) VALUES (?, ?)").run(
+    normalized,
+    company
+  );
+
+  // Notifica admins — fire and forget, falha não bloqueia resposta
+  const admins = db
+    .prepare("SELECT email FROM users WHERE is_admin = 1 AND status != 'revoked'")
+    .all()
+    .map((r) => r.email);
+
+  if (admins.length > 0) {
+    sendEmail(admins, "access-request", {
+      email: normalized,
+      company: company === "tenda" ? "Tenda Atacado" : "Voxcred — Cartão Tenda",
+    });
+  }
+
+  // Resposta genérica
+  res.json({ ok: true });
+});
+
 router.post("/logout", (req, res) => {
   const { refreshToken } = req.body;
   if (refreshToken) {
     db.prepare("DELETE FROM refresh_tokens WHERE token = ?").run(refreshToken);
   }
   res.json({ ok: true });
+});
+
+// ─── SSO Entra ID (v2) ────────────────────────────────────────────────────────
+
+// Inicia fluxo SSO: detecta tenant pelo e-mail e redireciona ao Azure AD
+router.get("/sso/login", (req, res) => {
+  const { email } = req.query;
+  const company = ssoService.companyFromEmail(email || "");
+
+  if (!company) {
+    return res.status(400).json({ error: "E-mail inválido ou domínio não autorizado." });
+  }
+
+  if (!ssoService.isConfigured(company)) {
+    return res.status(503).json({ error: "SSO não configurado para este domínio." });
+  }
+
+  const redirectUri = `${req.protocol}://${req.get("host")}/api/auth/sso/callback`;
+  const { url } = ssoService.buildAuthUrl(company, redirectUri);
+  res.redirect(url);
+});
+
+// Callback do Azure AD após autenticação
+router.get("/sso/callback", async (req, res) => {
+  const { code, state, error: oauthError } = req.query;
+
+  if (oauthError) {
+    return res.status(401).json({ error: `SSO negado: ${oauthError}` });
+  }
+
+  // Valida e consome o state (anti-CSRF)
+  const stateEntry = ssoService.consumeState(state);
+  if (!stateEntry) {
+    return res.status(400).json({ error: "State inválido ou expirado." });
+  }
+
+  const { company } = stateEntry;
+  const redirectUri = `${req.protocol}://${req.get("host")}/api/auth/sso/callback`;
+
+  let payload;
+  try {
+    const tokens = await ssoService.exchangeCode(company, code, redirectUri);
+    payload = ssoService.decodeAndValidateIdToken(tokens.id_token, company);
+  } catch (err) {
+    console.error("[sso] Erro no callback:", err.message);
+    return res.status(401).json({ error: "Autenticação SSO falhou." });
+  }
+
+  const oid = payload.oid || payload.sub;
+  if (!oid) return res.status(401).json({ error: "Token sem identificador de usuário." });
+
+  const user = db
+    .prepare("SELECT id, name, email, is_admin, is_ti, status, weekly_office_days FROM users WHERE entra_oid = ?")
+    .get(oid);
+
+  if (!user) {
+    return res.status(401).json({ error: "Usuário não encontrado. Solicite acesso ao administrador." });
+  }
+
+  if (user.status === "pending") {
+    return res.status(403).json({ error: "Seu acesso está pendente de aprovação." });
+  }
+
+  if (user.status === "revoked") {
+    return res.status(403).json({ error: "Seu acesso foi revogado. Contate o administrador." });
+  }
+
+  const tokenPayload = {
+    id: user.id,
+    name: user.name,
+    email: user.email,
+    is_admin: user.is_admin,
+    is_ti: user.is_ti,
+    weekly_office_days: user.weekly_office_days ?? 3,
+  };
+  const token = jwt.sign(tokenPayload, SECRET, { expiresIn: "8h" });
+
+  // Redireciona para o frontend com o token na query string
+  // O frontend deve extrair e armazenar o token, removendo-o da URL
+  res.redirect(`/?sso_token=${encodeURIComponent(token)}`);
 });
 
 module.exports = router;
