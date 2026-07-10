@@ -171,6 +171,22 @@ router.post("/refresh", (req, res) => {
   res.json({ token, refreshToken: newRefreshToken, user });
 });
 
+// ─── Promoção de usuário a admin (protegida por SETUP_TOKEN) ─────────────────
+router.post("/promote", (req, res) => {
+  const { email, setupToken } = req.body;
+  const SETUP_TOKEN = process.env.SETUP_TOKEN;
+
+  if (!SETUP_TOKEN) return res.status(403).json({ error: "SETUP_TOKEN não configurado no servidor." });
+  if (setupToken !== SETUP_TOKEN) return res.status(403).json({ error: "Token inválido." });
+  if (!email) return res.status(400).json({ error: "E-mail obrigatório." });
+
+  const user = db.prepare("SELECT id, name, email FROM users WHERE email = ?").get(email.trim().toLowerCase());
+  if (!user) return res.status(404).json({ error: "Usuário não encontrado." });
+
+  db.prepare("UPDATE users SET is_admin = 1, status = 'active' WHERE id = ?").run(user.id);
+  res.json({ ok: true, message: `${user.name} (${user.email}) agora é admin.` });
+});
+
 // ─── Pedido de acesso (v2) ────────────────────────────────────────────────────
 router.post("/request-access", (req, res) => {
   const { email } = req.body;
