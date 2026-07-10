@@ -1,6 +1,7 @@
 const express = require("express");
 const router = express.Router();
 const bcrypt = require("bcryptjs");
+const crypto = require("crypto");
 const db = require("../db");
 const { authMiddleware, adminMiddleware } = require("../middleware/auth");
 const { auditLog } = require("../utils/audit");
@@ -14,17 +15,23 @@ router.get("/", authMiddleware, adminMiddleware, (req, res) => {
   res.json(users);
 });
 
-// Criar usuário (admin)
+// Criar usuário (admin) — senha opcional: sem senha = usuário SSO-only
 router.post("/", authMiddleware, adminMiddleware, (req, res) => {
   const { name, email, password } = req.body;
   const nameErr = validateName(name);
   if (nameErr) return res.status(400).json({ error: nameErr });
   const emailErr = validateEmail(email);
   if (emailErr) return res.status(400).json({ error: emailErr });
-  const passErr = validatePassword(password);
-  if (passErr) return res.status(400).json({ error: passErr });
 
-  const hash = bcrypt.hashSync(password, 10);
+  let hash;
+  if (password) {
+    const passErr = validatePassword(password);
+    if (passErr) return res.status(400).json({ error: passErr });
+    hash = bcrypt.hashSync(password, 10);
+  } else {
+    // Usuário SSO-only: hash inacessível gerado aleatoriamente
+    hash = bcrypt.hashSync(crypto.randomBytes(32).toString("hex"), 10);
+  }
   try {
     const result = db
       .prepare("INSERT INTO users (name, email, password_hash, is_admin, weekly_office_days) VALUES (?, ?, ?, 0, 3)")

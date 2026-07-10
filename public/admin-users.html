@@ -122,13 +122,6 @@
         </div>
       </div>
 
-      <div class="field-row" id="password-row">
-        <div class="form-group" style="margin:0">
-          <label>Senha <span style="color:var(--text-muted);font-size:.8rem">(novo usuário)</span></label>
-          <input type="password" id="edit-password" placeholder="Mínimo 8 caracteres" />
-        </div>
-      </div>
-
       <div class="form-group" style="margin:0">
         <label>Dias por semana que pode reservar mesa <span style="color:var(--text-muted);font-size:.8rem">(1–5)</span></label>
         <input type="number" id="edit-days" min="1" max="5" value="3" style="width:80px" />
@@ -267,9 +260,7 @@
     document.getElementById("edit-email").disabled = false;
     document.getElementById("edit-company").value = "";
     document.getElementById("edit-department").value = "";
-    document.getElementById("edit-password").value = "";
     document.getElementById("edit-days").value = "3";
-    document.getElementById("password-row").style.display = "";
     document.getElementById("modal-msg").textContent = "";
     document.getElementById("modal").classList.add("open");
   }
@@ -285,9 +276,7 @@
     document.getElementById("edit-email").disabled = true;
     document.getElementById("edit-company").value = u.company || "";
     document.getElementById("edit-department").value = u.department || "";
-    document.getElementById("edit-password").value = "";
     document.getElementById("edit-days").value = u.weekly_office_days || 3;
-    document.getElementById("password-row").style.display = "none";
     document.getElementById("modal-msg").textContent = "";
     document.getElementById("modal").classList.add("open");
   }
@@ -304,7 +293,6 @@
     const email      = document.getElementById("edit-email").value.trim();
     const company    = document.getElementById("edit-company").value.trim();
     const department = document.getElementById("edit-department").value.trim();
-    const password   = document.getElementById("edit-password").value;
     const days       = parseInt(document.getElementById("edit-days").value, 10);
 
     msg.style.color = "var(--danger)";
@@ -313,10 +301,9 @@
     try {
       if (isNew) {
         if (!email) { msg.textContent = "E-mail é obrigatório."; return; }
-        if (!password) { msg.textContent = "Senha é obrigatória."; return; }
         const u = await API.fetch("/users", {
           method: "POST",
-          body: JSON.stringify({ name, email, password }),
+          body: JSON.stringify({ name, email }),
         });
         // Update company/dept right after
         if (company || department) {

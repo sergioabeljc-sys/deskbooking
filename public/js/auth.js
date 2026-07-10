@@ -35,6 +35,14 @@ function loginWithMicrosoft() {
   location.href = `/api/auth/sso/login?email=${encodeURIComponent(email)}`;
 }
 
+function toggleAdminLogin(e) {
+  e.preventDefault();
+  const form = document.getElementById("auth-form");
+  const visible = form.style.display !== "none";
+  form.style.display = visible ? "none" : "block";
+  document.getElementById("admin-login-link").textContent = visible ? "Acesso administrativo" : "Cancelar";
+}
+
 document.getElementById("auth-form").addEventListener("submit", async (e) => {
   e.preventDefault();
   const email = document.getElementById("email").value.trim();
