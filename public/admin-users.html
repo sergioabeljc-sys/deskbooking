@@ -243,6 +243,9 @@
               <td>
                 <div class="action-cell">
                   <button class="btn btn-ghost btn-sm" onclick="openEdit(${u.id})">Editar</button>
+                  ${u.id !== me.id ? `<button class="btn btn-ghost btn-sm" onclick="toggleAdmin(${u.id},'${esc(u.name)}',${u.is_admin ? 1 : 0})" style="color:${u.is_admin ? 'var(--danger)' : 'var(--text-muted)'}">
+                    ${u.is_admin ? 'Remover Admin' : 'Tornar Admin'}
+                  </button>` : ''}
                   ${toggleBtn}
                   ${u.id !== me.id ? '<button class="btn btn-danger btn-sm" onclick="deleteUser(' + u.id + ',\'' + esc(u.name) + '\')">Remover</button>' : ''}
                 </div>
@@ -351,6 +354,18 @@
       msg.textContent = e.message || "Erro ao salvar.";
     }
   });
+
+  // ── Toggle admin ──────────────────────────────────────────────────────────
+  async function toggleAdmin(id, name, currentlyAdmin) {
+    const action = currentlyAdmin ? `Remover permissão de admin de "${name}"?` : `Tornar "${name}" administrador?`;
+    if (!confirm(action)) return;
+    try {
+      await API.fetch(`/users/${id}/toggle-admin`, { method: "PUT" });
+      loadUsers();
+    } catch(e) {
+      alert(e.message || "Erro ao alterar admin.");
+    }
+  }
 
   // ── Toggle status ─────────────────────────────────────────────────────────
   async function toggleStatus(id, name, currentlyInactive) {
