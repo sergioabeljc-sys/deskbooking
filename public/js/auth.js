@@ -24,9 +24,15 @@ if (API.getToken() && API.getUser()) {
   window.location.href = "/week.html";
 }
 
-// AC1: inicia fluxo SSO direto pela empresa (sem precisar digitar e-mail)
-function loginWithSSO(company) {
-  location.href = `/api/auth/sso/login?company=${encodeURIComponent(company)}`;
+// AC1: inicia fluxo SSO ��� detecta empresa pelo e-mail digitado
+function loginWithSSO() {
+  const email = document.getElementById("email").value.trim();
+  if (!email) {
+    showToast("Digite seu e-mail corporativo para continuar.", "error");
+    document.getElementById("email").focus();
+    return;
+  }
+  location.href = `/api/auth/sso/login?email=${encodeURIComponent(email)}`;
 }
 
 document.getElementById("auth-form").addEventListener("submit", async (e) => {
