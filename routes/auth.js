@@ -327,12 +327,12 @@ router.get("/sso/callback", async (req, res) => {
     return res.status(401).json({ error: "Autenticação SSO falhou." });
   }
 
-  const oid = payload.oid || payload.sub;
-  if (!oid) return res.status(401).json({ error: "Token sem identificador de usuário." });
+  const email = (payload.preferred_username || payload.email || "").toLowerCase().trim();
+  if (!email) return res.status(401).json({ error: "Token sem e-mail de usuário." });
 
   const user = db
-    .prepare("SELECT id, name, email, is_admin, is_ti, status, weekly_office_days FROM users WHERE entra_oid = ?")
-    .get(oid);
+    .prepare("SELECT id, name, email, is_admin, is_ti, status, weekly_office_days FROM users WHERE LOWER(email) = ?")
+    .get(email);
 
   if (!user) {
     return res.status(401).json({ error: "Usuário não encontrado. Solicite acesso ao administrador." });

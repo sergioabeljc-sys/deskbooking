@@ -55,9 +55,10 @@ describe("GET /api/auth/sso/login", () => {
     expect(res.status).toBe(400);
   });
 
-  it("retorna 503 sem e-mail quando ENTRA_CLIENT_ID não configurado (fluxo common)", async () => {
-    const res = await request(app).get("/api/auth/sso/login");
-    expect(res.status).toBe(503);
+  it("redireciona para Microsoft /common sem e-mail (fluxo common)", async () => {
+    const res = await request(app).get("/api/auth/sso/login").redirects(0);
+    expect(res.status).toBe(302);
+    expect(res.headers.location).toContain("login.microsoftonline.com/common");
   });
 
   it("inclui state na URL de redirect (proteção CSRF)", async () => {
@@ -123,7 +124,7 @@ describe("GET /api/auth/sso/callback", () => {
     const state = setupState("tenda");
     global.fetch.mockResolvedValue({
       ok: true,
-      json: async () => ({ id_token: buildIdToken({ oid: "test-oid-123" }) }),
+      json: async () => ({ id_token: buildIdToken({ oid: "test-oid-123", preferred_username: "ana@tendaatacado.com.br" }) }),
     });
 
     const res = await request(app)
@@ -150,7 +151,7 @@ describe("GET /api/auth/sso/callback", () => {
     const state = setupState("tenda");
     global.fetch.mockResolvedValue({
       ok: true,
-      json: async () => ({ id_token: buildIdToken({ oid: "oid-nao-existe" }) }),
+      json: async () => ({ id_token: buildIdToken({ oid: "oid-nao-existe", preferred_username: "naoexiste@tendaatacado.com.br" }) }),
     });
 
     const res = await request(app)
@@ -163,7 +164,7 @@ describe("GET /api/auth/sso/callback", () => {
     const state = setupState("tenda");
     global.fetch.mockResolvedValue({
       ok: true,
-      json: async () => ({ id_token: buildIdToken({ oid: "pending-oid" }) }),
+      json: async () => ({ id_token: buildIdToken({ oid: "pending-oid", preferred_username: "pend@tendaatacado.com.br" }) }),
     });
 
     const res = await request(app)
@@ -177,7 +178,7 @@ describe("GET /api/auth/sso/callback", () => {
     const state = setupState("tenda");
     global.fetch.mockResolvedValue({
       ok: true,
-      json: async () => ({ id_token: buildIdToken({ oid: "revoked-oid" }) }),
+      json: async () => ({ id_token: buildIdToken({ oid: "revoked-oid", preferred_username: "rev@tendaatacado.com.br" }) }),
     });
 
     const res = await request(app)
@@ -191,7 +192,7 @@ describe("GET /api/auth/sso/callback", () => {
     const state = setupState("tenda");
     global.fetch.mockResolvedValue({
       ok: true,
-      json: async () => ({ id_token: buildIdToken({ oid: "test-oid-123" }) }),
+      json: async () => ({ id_token: buildIdToken({ oid: "test-oid-123", preferred_username: "ana@tendaatacado.com.br" }) }),
     });
 
     await request(app).get(`/api/auth/sso/callback?code=CODE&state=${state}`).redirects(0);
@@ -211,7 +212,7 @@ describe("GET /api/auth/sso/callback", () => {
     const state = setupState("tenda");
     global.fetch.mockResolvedValue({
       ok: true,
-      json: async () => ({ id_token: buildIdToken({ oid: "test-oid-123" }) }),
+      json: async () => ({ id_token: buildIdToken({ oid: "test-oid-123", preferred_username: "ana@tendaatacado.com.br" }) }),
     });
 
     const callbackRes = await request(app)
