@@ -24,23 +24,9 @@ if (API.getToken() && API.getUser()) {
   window.location.href = "/week.html";
 }
 
-// AC1: inicia fluxo SSO com o e-mail digitado
-function loginWithMicrosoft() {
-  const email = document.getElementById("email").value.trim();
-  if (!email) {
-    showToast("Digite seu e-mail corporativo antes de continuar.", "error");
-    document.getElementById("email").focus();
-    return;
-  }
-  location.href = `/api/auth/sso/login?email=${encodeURIComponent(email)}`;
-}
-
-function toggleAdminLogin(e) {
-  e.preventDefault();
-  const form = document.getElementById("auth-form");
-  const visible = form.style.display !== "none";
-  form.style.display = visible ? "none" : "block";
-  document.getElementById("admin-login-link").textContent = visible ? "Acesso administrativo" : "Cancelar";
+// AC1: inicia fluxo SSO direto pela empresa (sem precisar digitar e-mail)
+function loginWithSSO(company) {
+  location.href = `/api/auth/sso/login?company=${encodeURIComponent(company)}`;
 }
 
 document.getElementById("auth-form").addEventListener("submit", async (e) => {

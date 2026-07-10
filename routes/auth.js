@@ -254,13 +254,15 @@ router.post("/logout", (req, res) => {
 
 // ─── SSO Entra ID (v2) ────────────────────────────────────────────────────────
 
-// Inicia fluxo SSO: detecta tenant pelo e-mail e redireciona ao Azure AD
+// Inicia fluxo SSO: aceita ?company=voxcred|tenda diretamente, ou detecta pelo e-mail
 router.get("/sso/login", (req, res) => {
-  const { email } = req.query;
-  const company = ssoService.companyFromEmail(email || "");
+  const VALID_COMPANIES = ["voxcred", "tenda"];
+  const company = VALID_COMPANIES.includes(req.query.company)
+    ? req.query.company
+    : ssoService.companyFromEmail(req.query.email || "");
 
   if (!company) {
-    return res.status(400).json({ error: "E-mail inválido ou domínio não autorizado." });
+    return res.status(400).json({ error: "Empresa não identificada. Informe ?company=voxcred ou ?company=tenda." });
   }
 
   if (!ssoService.isConfigured(company)) {
