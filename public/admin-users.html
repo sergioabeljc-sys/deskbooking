@@ -29,7 +29,7 @@
     .badge-ok       { background: #dcfce7; color: #15803d; font-size: .7rem; font-weight: 700; padding: 2px 6px; border-radius: 10px; }
     .badge-inactive { background: #fef3c7; color: #92400e; font-size: .7rem; font-weight: 700; padding: 2px 6px; border-radius: 10px; }
 
-    .action-cell { display: flex; gap: .4rem; align-items: center; }
+    .action-cell { display: flex; gap: .4rem; align-items: center; flex-wrap: wrap; }
 
     /* Modal */
     .modal-overlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,.45); z-index: 300; align-items: center; justify-content: center; }
@@ -243,9 +243,7 @@
               <td>
                 <div class="action-cell">
                   <button class="btn btn-ghost btn-sm" onclick="openEdit(${u.id})">Editar</button>
-                  ${u.id !== me.id ? `<button class="btn btn-ghost btn-sm" onclick="toggleAdmin(${u.id},'${esc(u.name)}',${u.is_admin ? 1 : 0})" style="color:${u.is_admin ? 'var(--danger)' : 'var(--text-muted)'}">
-                    ${u.is_admin ? 'Remover Admin' : 'Tornar Admin'}
-                  </button>` : ''}
+                  ${u.id !== me.id ? `<button class="btn btn-ghost btn-sm" onclick="toggleAdmin(${u.id},'${esc(u.name)}',${u.is_admin ? 1 : 0})" style="color:${u.is_admin ? 'var(--danger)' : 'var(--text-muted)'}">${u.is_admin ? '− Admin' : '+ Admin'}</button>` : ''}
                   ${toggleBtn}
                   ${u.id !== me.id ? '<button class="btn btn-danger btn-sm" onclick="deleteUser(' + u.id + ',\'' + esc(u.name) + '\')">Remover</button>' : ''}
                 </div>
