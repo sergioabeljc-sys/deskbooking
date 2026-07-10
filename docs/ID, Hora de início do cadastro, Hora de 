@@ -1,0 +1,12 @@
+ID, Hora de início do cadastro,	Hora de conclusão do cadastro,
+Email, Nome, Hora da última modificação, Categoria, Lider do Projeto, 
+Qual é o Projeto? (Escrever o nome do Projeto), O quê? (Defina exatamente qual é o projeto ou a tarefa a ser realizada),
+Por que? (Explique o motivo, a justificativa ou o benefício esperado do projeto), 
+Onde? (Indique o local físico ou ambiente/sistema onde o projeto será executado), 
+Quando? (Determine prazos, datas-chave e cronograma geral), 
+Quem? (Identifique os responsáveis pela execução, apoio e aprovação), 
+Como? (Descreva o método, processo ou abordagem que será utilizada), 
+Quanto? (Especifique os custos, recursos necessários e orçamento estimado), 
+Riscos (Quais os Riscos envolvidos em fazer o Projeto ou em não fazer?),
+Marcos (Eventos significativos que indicam a conclusão de fases ou entregas importantes), 
+Natureza do Projeto (Vai indicar se o projeto é BAU/Operação ou Inovação)
