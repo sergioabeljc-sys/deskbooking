@@ -29,17 +29,14 @@ function loginWithSSO() {
   location.href = "/api/auth/sso/login";
 }
 
-// Mostra botão SSO apenas se habilitado no servidor
+// Oculta botão SSO apenas se servidor retornar explicitamente enabled: false
 fetch("/api/auth/sso/config")
   .then(r => r.json())
   .then(cfg => {
     const ssoSection = document.getElementById("sso-section");
-    if (ssoSection) ssoSection.style.display = cfg.enabled ? "" : "none";
+    if (ssoSection && cfg.enabled === false) ssoSection.style.display = "none";
   })
-  .catch(() => {
-    const ssoSection = document.getElementById("sso-section");
-    if (ssoSection) ssoSection.style.display = "none";
-  });
+  .catch(() => { /* mantém visível em caso de erro */ });
 
 document.getElementById("auth-form").addEventListener("submit", async (e) => {
   e.preventDefault();
