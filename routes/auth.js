@@ -254,6 +254,11 @@ router.post("/logout", (req, res) => {
 
 // ─── SSO Entra ID (v2) ────────────────────────────────────────────────────────
 
+// Retorna se SSO está habilitado (sem expor credenciais)
+router.get("/sso/config", (req, res) => {
+  res.json({ enabled: ssoService.isCommonConfigured() });
+});
+
 // Inicia fluxo SSO.
 // Sem parâmetros → fluxo common (app registration único, detecta tenant no callback).
 // ?email=... ou ?company=... → fluxo legado por tenant específico.

@@ -29,6 +29,18 @@ function loginWithSSO() {
   location.href = "/api/auth/sso/login";
 }
 
+// Mostra botão SSO apenas se habilitado no servidor
+fetch("/api/auth/sso/config")
+  .then(r => r.json())
+  .then(cfg => {
+    const ssoSection = document.getElementById("sso-section");
+    if (ssoSection) ssoSection.style.display = cfg.enabled ? "" : "none";
+  })
+  .catch(() => {
+    const ssoSection = document.getElementById("sso-section");
+    if (ssoSection) ssoSection.style.display = "none";
+  });
+
 document.getElementById("auth-form").addEventListener("submit", async (e) => {
   e.preventDefault();
   const email = document.getElementById("email").value.trim();

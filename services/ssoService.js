@@ -32,19 +32,21 @@ function isConfigured(company) {
 }
 
 function isCommonConfigured() {
-  return !!(process.env.ENTRA_CLIENT_ID && process.env.ENTRA_CLIENT_SECRET);
+  return process.env.SSO_ENABLED === "true" &&
+    !!(process.env.ENTRA_VOXCRED_CLIENT_ID && process.env.ENTRA_VOXCRED_CLIENT_SECRET);
 }
 
 function detectCompanyFromTid(tid) {
   if (tid && tid === process.env.ENTRA_VOXCRED_TENANT_ID) return "voxcred";
-  if (tid && tid === process.env.ENTRA_TENDA_TENANT_ID) return "tenda";
+  // Tenda como tenant separado (opcional)
+  if (tid && process.env.ENTRA_TENDA_TENANT_ID && tid === process.env.ENTRA_TENDA_TENANT_ID) return "tenda";
   return null;
 }
 
 // ─── Fluxo common (app registration único multi-tenant) ──────────────────────
 
 function buildCommonAuthUrl(redirectUri) {
-  const clientId = process.env.ENTRA_CLIENT_ID;
+  const clientId = process.env.ENTRA_VOXCRED_CLIENT_ID;
   const state = crypto.randomBytes(32).toString("hex");
   const expiresAt = new Date(Date.now() + STATE_TTL_MS).toISOString();
   db.prepare("INSERT INTO sso_states (state, company, expires_at) VALUES (?, ?, ?)").run(state, "common", expiresAt);
@@ -63,8 +65,8 @@ function buildCommonAuthUrl(redirectUri) {
 
 async function exchangeCommonCode(code, redirectUri) {
   const body = new URLSearchParams({
-    client_id: process.env.ENTRA_CLIENT_ID,
-    client_secret: process.env.ENTRA_CLIENT_SECRET,
+    client_id: process.env.ENTRA_VOXCRED_CLIENT_ID,
+    client_secret: process.env.ENTRA_VOXCRED_CLIENT_SECRET,
     code,
     redirect_uri: redirectUri,
     grant_type: "authorization_code",
@@ -91,7 +93,7 @@ function decodeCommonIdToken(idToken) {
   const now = Math.floor(Date.now() / 1000);
   if (payload.exp && payload.exp < now) throw new Error("id_token expirado");
   if (payload.nbf && payload.nbf > now + 60) throw new Error("id_token ainda não válido");
-  if (payload.aud && payload.aud !== process.env.ENTRA_CLIENT_ID) throw new Error("id_token: aud inválido");
+  if (payload.aud && payload.aud !== process.env.ENTRA_VOXCRED_CLIENT_ID) throw new Error("id_token: aud inválido");
   return payload;
 }
 
