@@ -258,7 +258,7 @@ function downloadICS(booking) {
   const ics = [
     "BEGIN:VCALENDAR","VERSION:2.0","PRODID:-//WorkPlace//PT",
     "CALSCALE:GREGORIAN","METHOD:PUBLISH","BEGIN:VEVENT",
-    `UID:booking-${booking.id}@desk-booking`,
+    `UID:booking-${booking.id}@workplace`,
     `DTSTAMP:${now}`,
     `DTSTART;VALUE=DATE:${dateStr}`,
     `DTEND;VALUE=DATE:${nextStr}`,

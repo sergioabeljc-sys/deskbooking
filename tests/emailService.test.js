@@ -5,7 +5,7 @@ process.env.SMTP_HOST = "smtp.test.com";
 process.env.SMTP_PORT = "587";
 process.env.SMTP_USER = "test@test.com";
 process.env.SMTP_PASS = "secret";
-process.env.SMTP_FROM = "noreply@desk-booking.test";
+process.env.SMTP_FROM = "noreply@workplace.test";
 
 // Mock nodemailer antes de importar emailService
 const mockSendMail = jest.fn();

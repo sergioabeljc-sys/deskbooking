@@ -12,7 +12,7 @@ services:
       - .env
     environment:
       - NODE_ENV=production
-      - DB_PATH=/data/desk-booking.db
+      - DB_PATH=/data/workplace.db
 
 volumes:
   db_data:

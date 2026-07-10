@@ -1,5 +1,5 @@
 {
-  "name": "desk-booking",
+  "name": "workplace",
   "version": "1.0.0",
   "description": "Sistema de agendamento de mesas para escritório",
   "main": "server.js",

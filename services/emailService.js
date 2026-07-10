@@ -21,7 +21,7 @@ if (SMTP_CONFIGURED) {
   });
 }
 
-const FROM = process.env.SMTP_FROM || process.env.SMTP_USER || "noreply@desk-booking";
+const FROM = process.env.SMTP_FROM || process.env.SMTP_USER || "noreply@workplace";
 
 // ─── Templates ────────────────────────────────────────────────────────────────
 
@@ -34,7 +34,7 @@ const TEMPLATES = {
 
   "access-approved": (data) => ({
     subject: "Seu acesso ao WorkPlace foi aprovado",
-    text: `Olá, ${data.name || data.email}!\n\nSeu acesso ao WorkPlace foi aprovado. Faça login com sua conta Microsoft em: ${data.loginUrl || "https://desk-booking"}.`,
+    text: `Olá, ${data.name || data.email}!\n\nSeu acesso ao WorkPlace foi aprovado. Faça login com sua conta Microsoft em: ${data.loginUrl || "https://workplace"}.`,
     html: `<p>Olá, <b>${data.name || data.email}</b>!</p><p>Seu acesso ao WorkPlace foi aprovado.</p><p>Faça login com sua conta Microsoft para começar a reservar.</p>`,
   }),
 
