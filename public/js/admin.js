@@ -208,6 +208,94 @@ async function loadDashboard() {
 }
 
 // ─── Audit Log ────────────────────────────────────────────────────────────────
+const TI_LOCATIONS = { sp: "SP (escritório)", home: "Home office", itaqua: "Itaquaquecetuba" };
+const DOW_PT = { sun: "Dom", mon: "Seg", tue: "Ter", wed: "Qua", thu: "Qui", fri: "Sex", sat: "Sáb" };
+
+function renderAuditDetails(action, d) {
+  if (!d) return "—";
+  const e = escapeHtml;
+  const fd = (s) => s ? formatDate(s) : "";
+  const ft = (s) => s ? s.slice(0, 5) : "";
+  const parts = (...xs) => xs.filter(Boolean).join(" · ") || "—";
+
+  switch (action) {
+    case "cancel_booking":
+    case "create_booking_admin":
+      return parts(d.desk && e(d.desk), d.date && fd(d.date), d.user && e(d.user));
+
+    case "create_room_booking":
+      return parts(d.room_name && e(d.room_name), d.date && fd(d.date),
+        d.start_time && `${ft(d.start_time)}–${ft(d.end_time)}`);
+    case "cancel_room_booking":
+      return parts(d.room_name && e(d.room_name), d.date && fd(d.date),
+        d.start_time && `${ft(d.start_time)}–${ft(d.end_time)}`);
+
+    case "create_spot_booking":
+    case "cancel_spot_booking":
+      return parts(d.date && fd(d.date),
+        d.start_time && `${ft(d.start_time)}–${ft(d.end_time)}`);
+
+    case "create_user":
+    case "delete_user":
+      return parts(d.name && e(d.name), d.email && `&lt;${e(d.email)}&gt;`);
+    case "edit_user":
+      return parts(d.name && e(d.name), d.company && e(d.company), d.department && e(d.department));
+    case "toggle_ti":
+      return d.name ? `${e(d.name)} → TI: ${d.is_ti ? "sim" : "não"}` : "—";
+    case "toggle_admin":
+      return d.name ? `${e(d.name)} → Admin: ${d.is_admin ? "sim" : "não"}` : "—";
+    case "toggle_status":
+      return d.name ? `${e(d.name)} → ${d.status === "inactive" ? "Inativo" : "Ativo"}` : "—";
+    case "set_weekly_days":
+      return d.name ? `${e(d.name)} → ${d.weekly_office_days}d/semana` : "—";
+
+    case "approve_access":
+    case "refuse_access":
+      return d.email ? e(d.email) : "—";
+
+    case "create_department":
+    case "delete_department":
+      return d.name ? e(d.name) : "—";
+    case "update_department":
+      return parts(d.name && e(d.name), `vagas: ${d.can_book_spot ? "sim" : "não"}`);
+
+    case "update_spot_capacity": {
+      const when = d.specific_date ? fd(d.specific_date) : (DOW_PT[d.day_of_week] || d.day_of_week || "");
+      return parts(when, `${d.capacity} vagas`);
+    }
+
+    case "update_desk_type":
+      return parts(d.desk_name && e(d.desk_name), `Tipo: ${d.type}`,
+        d.owner_name && e(d.owner_name));
+    case "update_rotative_days": {
+      const days = Array.isArray(d.rotative_days_next)
+        ? (d.rotative_days_next.map(x => DOW_PT[x] || x).join(", ") || "nenhum")
+        : "—";
+      const from = d.rotative_days_next_from ? ` a partir de ${fd(d.rotative_days_next_from)}` : "";
+      return `${days}${from}`;
+    }
+
+    case "create_room":
+    case "update_room":
+      return parts(d.name && e(d.name), d.capacity && `${d.capacity} pessoas`);
+    case "deactivate_room":
+      return parts(d.name && e(d.name),
+        d.cancelled_bookings > 0 && `${d.cancelled_bookings} reservas canceladas`);
+
+    case "set_ti_location":
+      return parts(d.member_name && e(d.member_name), d.date && fd(d.date),
+        TI_LOCATIONS[d.location] || d.location);
+    case "clear_ti_location":
+      return parts(d.member_name && e(d.member_name), d.date && fd(d.date));
+
+    default:
+      return Object.entries(d)
+        .filter(([, v]) => v !== null && v !== undefined)
+        .map(([k, v]) => `${k}: ${typeof v === "object" ? JSON.stringify(v) : e(String(v))}`)
+        .join(" · ") || "—";
+  }
+}
+
 let auditPage = 1;
 
 async function loadAudit(page) {
@@ -225,18 +313,12 @@ async function loadAudit(page) {
     tbody.innerHTML = logs.map((l) => {
       const dt = new Date(l.created_at.replace(" ", "T") + "Z");
       const dateStr = isNaN(dt) ? l.created_at : dt.toLocaleDateString("pt-BR") + " " + dt.toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" });
-      let details = "";
-      if (l.details_parsed) {
-        const d = l.details_parsed;
-        if (d.desk && d.date && d.user) details = `${escapeHtml(d.desk)} · ${formatDate(d.date)} · ${escapeHtml(d.user)}`;
-        else if (d.name) details = escapeHtml(d.name) + (d.email ? ` &lt;${escapeHtml(d.email)}&gt;` : "") + (d.is_ti !== undefined ? ` → TI: ${d.is_ti ? "sim" : "não"}` : "") + (d.is_admin !== undefined ? ` → Admin: ${d.is_admin ? "sim" : "não"}` : "");
-        else if (d.date && d.location) details = `${formatDate(d.date)} · ${escapeHtml(d.location)}`;
-      }
+      const details = renderAuditDetails(l.action, l.details_parsed);
       return `<tr>
         <td style="white-space:nowrap;color:var(--text-muted);font-size:.8rem">${dateStr}</td>
         <td>${escapeHtml(l.actor_name)}</td>
         <td><span style="font-size:.8rem;font-weight:600;padding:.15rem .5rem;border-radius:4px;background:var(--bg)">${escapeHtml(l.action_label)}</span></td>
-        <td style="font-size:.8125rem;color:var(--text-muted)">${details || "—"}</td>
+        <td style="font-size:.8125rem;color:var(--text-muted)">${details}</td>
       </tr>`;
     }).join("");
 
@@ -353,30 +435,123 @@ async function exportCSV() {
 async function loadDesks() {
   const tbody = document.getElementById("desks-body");
   try {
-    const desks = await API.get("/desks");
+    const [desks, users] = await Promise.all([API.get("/desks"), API.get("/users")]);
+    const userMap = Object.fromEntries(users.map((u) => [u.id, u.name]));
     tbody.innerHTML = desks
-      .map(
-        (d) => `
+      .map((d) => {
+        const rotDays = (() => { try { return JSON.parse(d.rotative_days || "[]"); } catch { return []; } })();
+        const dayLabels = { mon:"Seg", tue:"Ter", wed:"Qua", thu:"Qui", fri:"Sex" };
+        let typeBadge, typeLabel;
+        if (d.type === "fixed") {
+          typeBadge = "badge-blue";
+          typeLabel = "Fixa Exclusiva";
+        } else if (d.type === "rotative" && d.owner_id) {
+          typeBadge = "badge-success";
+          typeLabel = "Com Dono";
+        } else {
+          typeBadge = "badge-gray";
+          typeLabel = "Rotativa";
+        }
+        const donoCell = d.owner_id
+          ? `<span>${escapeHtml(userMap[d.owner_id] || "ID " + d.owner_id)}</span>`
+          : `<span style="color:var(--text-muted)">—</span>`;
+        const daysInfo = d.type === "rotative" && d.owner_id && rotDays.length > 0
+          ? `<div style="font-size:.75rem;color:var(--text-muted);margin-top:.15rem">${rotDays.map((d) => dayLabels[d] || d).join(", ")}</div>`
+          : "";
+        return `
       <tr>
         <td>${escapeHtml(d.name)}</td>
         <td>Col ${d.pos_x}, Lin ${d.pos_y}</td>
+        <td>
+          <span class="badge ${typeBadge}">${typeLabel}</span>
+          ${daysInfo}
+        </td>
+        <td>${donoCell}</td>
         <td>
           <span class="badge ${d.is_active ? "badge-success" : "badge-gray"}">
             ${d.is_active ? "Ativa" : "Inativa"}
           </span>
         </td>
         <td style="display:flex;gap:.5rem;flex-wrap:wrap;">
+          <button class="btn btn-ghost btn-sm" onclick='showDeskTypeModal(${JSON.stringify(d).replace(/'/g, "&#39;")})'>Tipo</button>
           <button class="btn btn-ghost btn-sm" onclick="toggleDesk(${d.id}, ${d.is_active})">
             ${d.is_active ? "Desativar" : "Ativar"}
           </button>
           <button class="btn btn-danger btn-sm" data-id="${d.id}" data-name="${escapeHtml(d.name)}" onclick="deleteDesk(+this.dataset.id, this.dataset.name)">Excluir</button>
         </td>
       </tr>
-    `
-      )
+    `;
+      })
       .join("");
   } catch (err) {
-    tbody.innerHTML = `<tr><td colspan="4" class="empty-state">${err.message}</td></tr>`;
+    tbody.innerHTML = `<tr><td colspan="6" class="empty-state">${err.message}</td></tr>`;
+  }
+}
+
+async function showDeskTypeModal(desk) {
+  document.getElementById("desk-type-id").value = desk.id;
+  const rotDays = (() => { try { return JSON.parse(desk.rotative_days || "[]"); } catch { return []; } })();
+
+  // Set type selector
+  let uiType;
+  if (desk.type === "fixed") uiType = "fixed";
+  else if (desk.type === "rotative" && desk.owner_id) uiType = "rotative_owner";
+  else uiType = "rotative";
+  document.getElementById("desk-type-select").value = uiType;
+
+  // Load users into owner dropdown
+  try {
+    const users = await API.get("/users");
+    const sel = document.getElementById("desk-owner-select");
+    sel.innerHTML = '<option value="">Selecione o dono...</option>' +
+      users.map((u) => `<option value="${u.id}"${desk.owner_id == u.id ? " selected" : ""}>${escapeHtml(u.name)}</option>`).join("");
+  } catch {}
+
+  // Set days checkboxes
+  document.querySelectorAll(".desk-day-chk").forEach((chk) => {
+    chk.checked = rotDays.includes(chk.value);
+  });
+
+  onDeskTypeChange();
+  document.getElementById("modal-desk-type").classList.add("open");
+}
+
+function closeDeskTypeModal() {
+  document.getElementById("modal-desk-type").classList.remove("open");
+}
+
+function onDeskTypeChange() {
+  const val = document.getElementById("desk-type-select").value;
+  document.getElementById("desk-owner-group").style.display = val !== "rotative" ? "" : "none";
+  document.getElementById("desk-days-group").style.display = val === "rotative_owner" ? "" : "none";
+}
+
+async function submitDeskType() {
+  const id = document.getElementById("desk-type-id").value;
+  const uiType = document.getElementById("desk-type-select").value;
+  const ownerId = document.getElementById("desk-owner-select").value;
+
+  const backendType = uiType === "rotative_owner" ? "rotative" : uiType;
+  const body = { type: backendType };
+  if (uiType !== "rotative" && ownerId) body.owner_id = parseInt(ownerId);
+  if (uiType === "rotative" && !ownerId) body.owner_id = null;
+
+  try {
+    await API.put(`/desks/${id}/type`, body);
+
+    // If rotative_owner, also save rotative_days
+    if (uiType === "rotative_owner") {
+      const days = [...document.querySelectorAll(".desk-day-chk")]
+        .filter((c) => c.checked)
+        .map((c) => c.value);
+      await API.put(`/desks/${id}/rotative-days`, { rotative_days: days });
+    }
+
+    showToast("Tipo atualizado");
+    closeDeskTypeModal();
+    loadDesks();
+  } catch (err) {
+    showToast(err.message, "error");
   }
 }
 
@@ -441,14 +616,16 @@ async function loadUsers() {
           const daysSelect = `<select onchange="setWeeklyDays(${u.id}, +this.value)" style="border:1px solid var(--border);border-radius:var(--radius);padding:.2rem .4rem;font-size:.8125rem;background:var(--surface)">
             ${[1,2,3,4,5].map(n => `<option value="${n}"${days===n?" selected":""}>${n}</option>`).join("")}
           </select>`;
+          const isInactive = u.status === "inactive";
           return `
-      <tr>
+      <tr${isInactive ? ' style="opacity:.55"' : ''}>
         <td>${escapeHtml(u.name)}</td>
         <td>${escapeHtml(u.email)}</td>
         <td>
           <span class="badge ${u.is_admin ? "badge-blue" : "badge-gray"}">
             ${u.is_admin ? "Admin" : "Usuário"}
           </span>
+          ${isInactive ? '<span class="badge badge-yellow" style="background:#fef3c7;color:#92400e">Inativo</span>' : ''}
         </td>
         <td>
           ${u.is_ti ? '<span class="badge badge-blue">TI</span>' : '<span class="badge badge-gray">—</span>'}
@@ -463,6 +640,9 @@ async function loadUsers() {
             </button>
             <button class="btn btn-ghost btn-sm" onclick="toggleTi(${u.id}, ${u.is_ti})" style="color:${u.is_ti ? 'var(--primary)' : 'var(--text-muted)'}">
               ${u.is_ti ? "Remover TI" : "Equipe TI"}
+            </button>
+            <button class="btn btn-ghost btn-sm" onclick="toggleStatus(${u.id}, ${u.is_admin})" style="color:${isInactive ? 'var(--success)' : 'var(--text-muted)'}">
+              ${isInactive ? "Ativar" : "Inativar"}
             </button>
             <button class="btn btn-danger btn-sm" data-id="${u.id}" data-name="${escapeHtml(u.name)}" onclick="deleteUser(+this.dataset.id, this.dataset.name)">Excluir</button>
           `
@@ -532,6 +712,16 @@ async function toggleAdmin(id, currentAdmin) {
   try {
     await API.put(`/users/${id}/toggle-admin`);
     showToast(currentAdmin ? "Admin removido" : "Usuário promovido a admin");
+    loadUsers();
+  } catch (err) {
+    showToast(err.message, "error");
+  }
+}
+
+async function toggleStatus(id) {
+  try {
+    await API.put(`/users/${id}/toggle-status`);
+    showToast("Status atualizado");
     loadUsers();
   } catch (err) {
     showToast(err.message, "error");

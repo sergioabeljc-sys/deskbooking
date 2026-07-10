@@ -1,0 +1,239 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Admin — Salas de Reunião — WorkPlace</title>
+  <link rel="stylesheet" href="/css/style.css" />
+  <link rel="icon" type="image/svg+xml" href="/img/favicon.svg" />
+  <style>
+    .page-content { max-width: 900px; margin: 1.5rem auto; padding: 0 1rem 3rem; }
+    .admin-tabs { display: flex; gap: .25rem; padding: 0 1rem; border-bottom: 1px solid var(--border); background: var(--surface); }
+    .admin-tab { padding: .75rem 1.25rem; font-size: .875rem; font-weight: 500; color: var(--text-muted); cursor: pointer; border-bottom: 2px solid transparent; margin-bottom: -1px; text-decoration: none; }
+    .admin-tab:hover { color: var(--text); }
+    .admin-tab.active { color: var(--primary); border-bottom-color: var(--primary); }
+
+    .room-row { display: grid; grid-template-columns: 1fr auto auto auto; gap: .75rem; align-items: center; padding: .75rem 1rem; border: 1px solid var(--border); border-radius: var(--radius); background: var(--surface); }
+    .room-row + .room-row { margin-top: .5rem; }
+    .room-name { font-weight: 600; }
+    .room-meta { font-size: .8rem; color: var(--text-muted); }
+
+    .form-inline { display: grid; grid-template-columns: 1fr 120px 1fr auto; gap: .75rem; align-items: end; }
+    @media(max-width:640px) { .form-inline { grid-template-columns: 1fr 1fr; } }
+
+    .resource-check-grid { display: flex; flex-wrap: wrap; gap: .75rem; margin-top: .25rem; }
+    .resource-check-grid label { display: flex; align-items: center; gap: .35rem; font-size: .875rem; cursor: pointer; }
+  </style>
+</head>
+<body>
+
+<header class="header">
+  <div class="header-brand">WorkPlace — Admin<span class="header-brand-sub">Barra Funda · SP</span></div>
+  <div class="header-user">
+    <div class="header-nav"><a href="/week.html">Presenças</a></div>
+    <div class="header-nav"><a href="/spot-booking.html">Reservar Vaga</a></div>
+    <div class="header-nav"><a href="/rooms.html">Salas</a></div>
+    <div class="header-nav"><a href="/admin-rooms.html" style="color:var(--primary);font-weight:600">Admin</a></div>
+    <span id="user-name" style="font-size:.85rem;color:var(--text-muted)"></span>
+    <button class="btn btn-ghost btn-sm" onclick="logout()">Sair</button>
+  </div>
+</header>
+
+<!-- Admin tabs -->
+<nav class="admin-tabs">
+  <a class="admin-tab" href="/admin-users.html">Usuários</a>
+  <a class="admin-tab active" href="/admin-rooms.html">Salas</a>
+  <a class="admin-tab" href="/admin-capacity.html">Vagas &amp; Departamentos</a>
+  <a class="admin-tab" href="/admin-desks.html">Mesas</a>
+  <a class="admin-tab" href="/admin-bookings.html">Reservas</a>
+  <a class="admin-tab" href="/admin-audit.html">Auditoria</a>
+</nav>
+
+<div class="page-content">
+
+  <!-- Create room -->
+  <div class="card" style="margin-bottom:1.5rem">
+    <div class="card-header">Nova Sala de Reunião</div>
+    <div class="card-body" style="padding:1.25rem">
+      <div class="form-inline">
+        <div class="form-group" style="margin:0">
+          <label>Nome</label>
+          <input type="text" id="new-name" placeholder="Ex.: Sala A" />
+        </div>
+        <div class="form-group" style="margin:0">
+          <label>Capacidade</label>
+          <input type="number" id="new-capacity" value="4" min="1" max="50" />
+        </div>
+        <div class="form-group" style="margin:0">
+          <label>Recursos</label>
+          <div class="resource-check-grid" id="new-resources">
+            <label><input type="checkbox" value="TV" checked> TV</label>
+            <label><input type="checkbox" value="Projetor"> Projetor</label>
+            <label><input type="checkbox" value="Videoconferência"> Videoconf.</label>
+            <label><input type="checkbox" value="Quadro branco"> Quadro</label>
+          </div>
+        </div>
+        <button class="btn btn-primary" id="btn-create">Criar Sala</button>
+      </div>
+      <div id="create-msg" style="margin-top:.5rem;font-size:.85rem"></div>
+    </div>
+  </div>
+
+  <!-- Room list -->
+  <div class="card">
+    <div class="card-header">Salas Cadastradas</div>
+    <div class="card-body" style="padding:1.25rem">
+      <div id="rooms-list">
+        <p style="color:var(--text-muted)">Carregando...</p>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<!-- Edit modal -->
+<div id="edit-modal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.4);z-index:200;display:none;align-items:center;justify-content:center">
+  <div class="card" style="width:420px;max-width:95vw">
+    <div class="card-header">Editar Sala <button class="btn btn-ghost btn-sm" style="margin-left:auto" onclick="closeEdit()">✕</button></div>
+    <div class="card-body" style="padding:1.25rem">
+      <input type="hidden" id="edit-id" />
+      <div class="form-group">
+        <label>Nome</label>
+        <input type="text" id="edit-name" />
+      </div>
+      <div class="form-group">
+        <label>Capacidade</label>
+        <input type="number" id="edit-capacity" min="1" max="50" />
+      </div>
+      <div class="form-group">
+        <label>Recursos</label>
+        <div class="resource-check-grid" id="edit-resources">
+          <label><input type="checkbox" value="TV"> TV</label>
+          <label><input type="checkbox" value="Projetor"> Projetor</label>
+          <label><input type="checkbox" value="Videoconferência"> Videoconf.</label>
+          <label><input type="checkbox" value="Quadro branco"> Quadro</label>
+        </div>
+      </div>
+      <div style="display:flex;gap:.5rem;justify-content:flex-end">
+        <button class="btn btn-ghost" onclick="closeEdit()">Cancelar</button>
+        <button class="btn btn-primary" id="btn-save-edit">Salvar</button>
+      </div>
+      <div id="edit-msg" style="margin-top:.5rem;font-size:.85rem"></div>
+    </div>
+  </div>
+</div>
+
+<script src="/js/api.js"></script>
+<script>
+  // ── Auth ──────────────────────────────────────────────────────────────────
+  const _tok = localStorage.getItem("token");
+  if (!_tok) { location.href = "/index.html"; }
+  function parseJwt(t) { try { const b=t.split(".")[1].replace(/-/g,"+").replace(/_/g,"/"); return JSON.parse(new TextDecoder().decode(Uint8Array.from(atob(b),c=>c.charCodeAt(0)))); } catch { return {}; } }
+  const me = parseJwt(_tok);
+  if (!me.is_admin) { alert("Acesso restrito a administradores."); location.href = "/week.html"; }
+  document.getElementById("user-name").textContent = me.name || me.email || "";
+  function logout() { API.clearSession(); location.href = "/index.html"; }
+
+  function esc(s) { return String(s||"").replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;"); }
+
+  // ── Load rooms ────────────────────────────────────────────────────────────
+  let rooms = [];
+
+  async function loadRooms() {
+    try {
+      rooms = await API.fetch("/rooms");
+      renderRooms();
+    } catch(e) {
+      document.getElementById("rooms-list").innerHTML = `<p style="color:var(--danger)">${e.message}</p>`;
+    }
+  }
+
+  function renderRooms() {
+    const el = document.getElementById("rooms-list");
+    if (rooms.length === 0) { el.innerHTML = '<p style="color:var(--text-muted)">Nenhuma sala cadastrada.</p>'; return; }
+    el.innerHTML = "";
+    rooms.forEach(r => {
+      const row = document.createElement("div");
+      row.className = "room-row";
+      row.innerHTML = `
+        <div>
+          <div class="room-name">${esc(r.name)}</div>
+          <div class="room-meta">Cap. ${r.capacity} · ${(r.resources||[]).join(", ") || "—"}</div>
+        </div>
+        <button class="btn btn-ghost btn-sm" onclick="openEdit(${r.id})">Editar</button>
+        <button class="btn btn-danger btn-sm" onclick="deactivateRoom(${r.id},'${esc(r.name)}')">Desativar</button>
+      `;
+      el.appendChild(row);
+    });
+  }
+
+  // ── Create ────────────────────────────────────────────────────────────────
+  document.getElementById("btn-create").addEventListener("click", async () => {
+    const name = document.getElementById("new-name").value.trim();
+    const capacity = parseInt(document.getElementById("new-capacity").value);
+    const resources = [...document.querySelectorAll("#new-resources input:checked")].map(c => c.value);
+    const msg = document.getElementById("create-msg");
+
+    if (!name) { msg.style.color = "var(--danger)"; msg.textContent = "Nome é obrigatório."; return; }
+
+    try {
+      await API.fetch("/rooms", { method: "POST", body: JSON.stringify({ name, capacity, resources }) });
+      msg.style.color = "var(--success)"; msg.textContent = "Sala criada!";
+      document.getElementById("new-name").value = "";
+      loadRooms();
+    } catch(e) {
+      msg.style.color = "var(--danger)"; msg.textContent = e.message || "Erro.";
+    }
+  });
+
+  // ── Edit ──────────────────────────────────────────────────────────────────
+  function openEdit(id) {
+    const r = rooms.find(x => x.id === id);
+    if (!r) return;
+    document.getElementById("edit-id").value = id;
+    document.getElementById("edit-name").value = r.name;
+    document.getElementById("edit-capacity").value = r.capacity;
+    document.querySelectorAll("#edit-resources input").forEach(cb => {
+      cb.checked = (r.resources||[]).includes(cb.value);
+    });
+    document.getElementById("edit-msg").textContent = "";
+    const modal = document.getElementById("edit-modal");
+    modal.style.display = "flex";
+  }
+
+  function closeEdit() { document.getElementById("edit-modal").style.display = "none"; }
+
+  document.getElementById("btn-save-edit").addEventListener("click", async () => {
+    const id = document.getElementById("edit-id").value;
+    const name = document.getElementById("edit-name").value.trim();
+    const capacity = parseInt(document.getElementById("edit-capacity").value);
+    const resources = [...document.querySelectorAll("#edit-resources input:checked")].map(c => c.value);
+    const msg = document.getElementById("edit-msg");
+
+    try {
+      await API.fetch(`/rooms/${id}`, { method: "PUT", body: JSON.stringify({ name, capacity, resources }) });
+      msg.style.color = "var(--success)"; msg.textContent = "Salvo!";
+      loadRooms();
+      setTimeout(closeEdit, 800);
+    } catch(e) {
+      msg.style.color = "var(--danger)"; msg.textContent = e.message || "Erro.";
+    }
+  });
+
+  // ── Deactivate ────────────────────────────────────────────────────────────
+  async function deactivateRoom(id, name) {
+    if (!confirm(`Desativar a sala "${name}"? Reservas futuras serão canceladas.`)) return;
+    try {
+      const r = await API.fetch(`/rooms/${id}`, { method: "DELETE" });
+      alert(`Sala desativada. ${r.cancelled_bookings} reserva(s) cancelada(s).`);
+      loadRooms();
+    } catch(e) {
+      alert(e.message || "Erro ao desativar.");
+    }
+  }
+
+  // ── Init ──────────────────────────────────────────────────────────────────
+  loadRooms();
+</script>
+</body>
+</html>

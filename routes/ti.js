@@ -166,7 +166,7 @@ router.post("/admin/schedule", authMiddleware, adminMiddleware, (req, res) => {
   const maxDate2 = new Date(today2); maxDate2.setUTCDate(today2.getUTCDate() + 28);
   if (new Date(date + "T00:00:00Z") > maxDate2) return res.status(400).json({ error: "Não é permitido declarar com mais de 4 semanas de antecedência" });
 
-  const member = db.prepare("SELECT id FROM users WHERE id = ? AND is_ti = 1").get(user_id);
+  const member = db.prepare("SELECT id, name FROM users WHERE id = ? AND is_ti = 1").get(user_id);
   if (!member) return res.status(404).json({ error: "Membro TI não encontrado" });
 
   // Limite home office para admin também respeita (2/semana)
@@ -198,7 +198,7 @@ router.post("/admin/schedule", authMiddleware, adminMiddleware, (req, res) => {
     : false;
 
   auditLog(req.user.id, req.user.name, "set_ti_location", "user", user_id, {
-    member_id: user_id, date, location,
+    member_name: member.name, date, location,
   });
 
   res.json({ ok: true, date, location, bookingCancelled, hasBooking });
@@ -210,8 +210,9 @@ router.delete("/admin/schedule/:userId/:date", authMiddleware, adminMiddleware, 
   if (!/^\d{4}-\d{2}-\d{2}$/.test(date)) return res.status(400).json({ error: "Data inválida" });
   db.prepare("DELETE FROM ti_schedules WHERE user_id = ? AND date = ?").run(userId, date);
   const bookingCancelled = cancelBookingForDate(parseInt(userId, 10), date);
+  const clearedMember = db.prepare("SELECT name FROM users WHERE id = ?").get(userId);
   auditLog(req.user.id, req.user.name, "clear_ti_location", "user", parseInt(userId, 10), {
-    member_id: userId, date,
+    member_name: clearedMember?.name || null, date,
   });
   res.json({ ok: true, bookingCancelled });
 });

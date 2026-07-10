@@ -1,0 +1,360 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Admin — Vagas e Departamentos — WorkPlace</title>
+  <link rel="stylesheet" href="/css/style.css" />
+  <link rel="icon" type="image/svg+xml" href="/img/favicon.svg" />
+  <style>
+    .page-content { max-width: 900px; margin: 1.5rem auto; padding: 0 1rem 3rem; }
+    .admin-tabs { display: flex; gap: .25rem; padding: 0 1rem; border-bottom: 1px solid var(--border); background: var(--surface); }
+    .admin-tab { padding: .75rem 1.25rem; font-size: .875rem; font-weight: 500; color: var(--text-muted); cursor: pointer; border-bottom: 2px solid transparent; margin-bottom: -1px; text-decoration: none; }
+    .admin-tab:hover { color: var(--text); }
+    .admin-tab.active { color: var(--primary); border-bottom-color: var(--primary); }
+
+    /* Capacity per DOW */
+    .dow-grid { display: grid; grid-template-columns: repeat(5, 1fr); gap: .75rem; }
+    @media(max-width:580px) { .dow-grid { grid-template-columns: repeat(3,1fr); } }
+    .dow-card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 1rem; text-align: center; }
+    .dow-label { font-size: .8rem; font-weight: 600; color: var(--text-muted); margin-bottom: .5rem; text-transform: uppercase; letter-spacing: .4px; }
+    .dow-input { width: 70px; padding: .35rem .5rem; border: 1px solid var(--border); border-radius: var(--radius); font-size: 1rem; font-weight: 600; text-align: center; }
+    .dow-input:focus { border-color: var(--primary); outline: none; }
+    .dow-avail { font-size: .75rem; color: var(--text-muted); margin-top: .35rem; }
+
+    /* Override */
+    .override-row { display: flex; gap: .75rem; align-items: flex-end; flex-wrap: wrap; }
+    .override-list { margin-top: 1rem; }
+    .override-item { display: flex; align-items: center; gap:.5rem; padding: .5rem .75rem; background: #f8fafc; border: 1px solid var(--border); border-radius: var(--radius); font-size: .875rem; }
+    .override-item + .override-item { margin-top: .35rem; }
+    .override-item .od { font-weight: 600; flex: 1; }
+
+    /* Departments */
+    .dept-row { display: flex; align-items: center; justify-content: space-between; padding: .65rem 1rem; border: 1px solid var(--border); border-radius: var(--radius); background: var(--surface); }
+    .dept-row + .dept-row { margin-top: .5rem; }
+    .dept-name { font-weight: 600; font-size: .9rem; }
+    .toggle-btn { padding: .3rem .75rem; border: none; border-radius: 20px; font-size: .78rem; font-weight: 600; cursor: pointer; transition: background .15s; }
+    .toggle-on  { background: #dcfce7; color: #15803d; }
+    .toggle-on:hover  { background: #bbf7d0; }
+    .toggle-off { background: #fee2e2; color: #b91c1c; }
+    .toggle-off:hover { background: #fecaca; }
+  </style>
+</head>
+<body>
+
+<header class="header">
+  <div class="header-brand">WorkPlace — Admin<span class="header-brand-sub">Barra Funda · SP</span></div>
+  <div class="header-user">
+    <div class="header-nav"><a href="/week.html">Presenças</a></div>
+    <div class="header-nav"><a href="/spot-booking.html">Reservar Vaga</a></div>
+    <div class="header-nav"><a href="/rooms.html">Salas</a></div>
+    <div class="header-nav"><a href="/admin-rooms.html" style="color:var(--primary);font-weight:600">Admin</a></div>
+    <span id="user-name" style="font-size:.85rem;color:var(--text-muted)"></span>
+    <button class="btn btn-ghost btn-sm" onclick="logout()">Sair</button>
+  </div>
+</header>
+
+<nav class="admin-tabs">
+  <a class="admin-tab" href="/admin-users.html">Usuários</a>
+  <a class="admin-tab" href="/admin-rooms.html">Salas</a>
+  <a class="admin-tab active" href="/admin-capacity.html">Vagas &amp; Departamentos</a>
+  <a class="admin-tab" href="/admin-desks.html">Mesas</a>
+  <a class="admin-tab" href="/admin-bookings.html">Reservas</a>
+  <a class="admin-tab" href="/admin-audit.html">Auditoria</a>
+</nav>
+
+<div class="page-content">
+
+  <!-- Capacity by DOW -->
+  <div class="card" style="margin-bottom:1.5rem">
+    <div class="card-header">
+      Capacidade de Vagas por Dia da Semana
+      <button class="btn btn-primary btn-sm" id="btn-save-dow">Salvar tudo</button>
+    </div>
+    <div class="card-body" style="padding:1.25rem">
+      <p style="font-size:.85rem;color:var(--text-muted);margin-bottom:1rem">
+        Define o teto máximo de reservas rotativas por dia. O número real disponível é o menor entre este valor e a quantidade de mesas rotativas configuradas para o dia.
+      </p>
+      <div class="dow-grid">
+        <div class="dow-card">
+          <div class="dow-label">Segunda</div>
+          <input class="dow-input" type="number" min="0" max="200" id="cap-mon" value="—" placeholder="—" />
+          <div class="dow-avail" id="avail-mon"></div>
+        </div>
+        <div class="dow-card">
+          <div class="dow-label">Terça</div>
+          <input class="dow-input" type="number" min="0" max="200" id="cap-tue" value="—" placeholder="—" />
+          <div class="dow-avail" id="avail-tue"></div>
+        </div>
+        <div class="dow-card">
+          <div class="dow-label">Quarta</div>
+          <input class="dow-input" type="number" min="0" max="200" id="cap-wed" value="—" placeholder="—" />
+          <div class="dow-avail" id="avail-wed"></div>
+        </div>
+        <div class="dow-card">
+          <div class="dow-label">Quinta</div>
+          <input class="dow-input" type="number" min="0" max="200" id="cap-thu" value="—" placeholder="—" />
+          <div class="dow-avail" id="avail-thu"></div>
+        </div>
+        <div class="dow-card">
+          <div class="dow-label">Sexta</div>
+          <input class="dow-input" type="number" min="0" max="200" id="cap-fri" value="—" placeholder="—" />
+          <div class="dow-avail" id="avail-fri"></div>
+        </div>
+      </div>
+      <div id="dow-msg" style="margin-top:.75rem;font-size:.85rem"></div>
+    </div>
+  </div>
+
+  <!-- Date override -->
+  <div class="card" style="margin-bottom:1.5rem">
+    <div class="card-header">Capacidade por Data Específica</div>
+    <div class="card-body" style="padding:1.25rem">
+      <p style="font-size:.85rem;color:var(--text-muted);margin-bottom:1rem">
+        Substitui a capacidade semanal para datas específicas (feriados, eventos, etc.).
+      </p>
+      <div class="override-row">
+        <div class="form-group" style="margin:0">
+          <label>Data</label>
+          <input type="date" id="override-date" />
+        </div>
+        <div class="form-group" style="margin:0">
+          <label>Capacidade</label>
+          <input type="number" id="override-cap" min="0" max="200" placeholder="Ex: 0" style="width:90px" />
+        </div>
+        <button class="btn btn-primary btn-sm" id="btn-add-override">Definir</button>
+      </div>
+      <div id="override-msg" style="margin-top:.5rem;font-size:.85rem"></div>
+      <div class="override-list" id="override-list"></div>
+    </div>
+  </div>
+
+  <!-- Departments -->
+  <div class="card">
+    <div class="card-header">Departamentos Habilitados para Reserva de Vaga</div>
+    <div class="card-body" style="padding:1.25rem">
+      <p style="font-size:.85rem;color:var(--text-muted);margin-bottom:1rem">
+        Apenas usuários de departamentos habilitados podem reservar vagas no escritório.
+      </p>
+
+      <!-- Add department -->
+      <div style="display:flex;gap:.5rem;margin-bottom:1rem;align-items:flex-end">
+        <div class="form-group" style="margin:0;flex:1">
+          <label>Novo departamento</label>
+          <input type="text" id="new-dept-name" placeholder="Ex.: Financeiro, Comercial..." />
+        </div>
+        <div style="display:flex;align-items:center;gap:.4rem;padding-bottom:.1rem">
+          <label style="font-size:.85rem;cursor:pointer">
+            <input type="checkbox" id="new-dept-enabled" checked> Habilitado
+          </label>
+          <button class="btn btn-primary btn-sm" id="btn-add-dept">Adicionar</button>
+        </div>
+      </div>
+
+      <div id="dept-list">
+        <p style="color:var(--text-muted)">Carregando...</p>
+      </div>
+      <div id="dept-msg" style="margin-top:.75rem;font-size:.85rem"></div>
+    </div>
+  </div>
+
+</div>
+
+<script src="/js/api.js"></script>
+<script>
+  // ── Auth ──────────────────────────────────────────────────────────────────
+  const _tok = localStorage.getItem("token");
+  if (!_tok) { location.href = "/index.html"; }
+  function parseJwt(t) { try { const b=t.split(".")[1].replace(/-/g,"+").replace(/_/g,"/"); return JSON.parse(new TextDecoder().decode(Uint8Array.from(atob(b),c=>c.charCodeAt(0)))); } catch { return {}; } }
+  const me = parseJwt(_tok);
+  if (!me.is_admin) { alert("Acesso restrito a administradores."); location.href = "/week.html"; }
+  document.getElementById("user-name").textContent = me.name || me.email || "";
+  function logout() { API.clearSession(); location.href = "/index.html"; }
+
+  const DOW_MAP = { mon:"cap-mon", tue:"cap-tue", wed:"cap-wed", thu:"cap-thu", fri:"cap-fri" };
+
+  // ── Load capacity ─────────────────────────────────────────────────────────
+  let allCapacity = [];
+
+  async function loadCapacity() {
+    try {
+      allCapacity = await API.fetch("/admin/spot-capacity");
+
+      // Fill DOW inputs
+      Object.entries(DOW_MAP).forEach(([day, id]) => {
+        const row = allCapacity.find(r => r.day_of_week === day && !r.specific_date);
+        document.getElementById(id).value = row ? row.capacity : "";
+      });
+
+      // Fill overrides
+      renderOverrides();
+
+      // Load availability for this week
+      loadWeekAvail();
+    } catch(e) {
+      document.getElementById("dow-msg").textContent = e.message;
+    }
+  }
+
+  function renderOverrides() {
+    const el = document.getElementById("override-list");
+    const overrides = allCapacity.filter(r => r.specific_date);
+    if (overrides.length === 0) { el.innerHTML = '<p style="color:var(--text-muted);font-size:.85rem;margin-top:.5rem">Nenhuma data específica configurada.</p>'; return; }
+    el.innerHTML = "";
+    overrides.sort((a,b) => a.specific_date.localeCompare(b.specific_date)).forEach(r => {
+      const div = document.createElement("div");
+      div.className = "override-item";
+      div.innerHTML = `<span class="od">${r.specific_date}</span> <span>${r.capacity} vaga${r.capacity===1?"":"s"}</span>`;
+      el.appendChild(div);
+    });
+  }
+
+  async function loadWeekAvail() {
+    // Get next Mon-Fri dates
+    const today = new Date(); today.setHours(0,0,0,0);
+    const dow = today.getDay();
+    const monday = new Date(today); monday.setDate(today.getDate() + (dow===0?1:dow===1?0:8-dow));
+    const days = Array.from({length:5},(_,i)=>{ const d=new Date(monday); d.setDate(monday.getDate()+i); return d.toISOString().slice(0,10); });
+    const dayNames = ["mon","tue","wed","thu","fri"];
+    for (let i=0;i<5;i++) {
+      try {
+        const data = await API.fetch(`/spots/availability?date=${days[i]}`);
+        document.getElementById(`avail-${dayNames[i]}`).textContent = `${data.available} vagas (próx. ${dayNames[i]})`;
+      } catch {}
+    }
+  }
+
+  // ── Save DOW ──────────────────────────────────────────────────────────────
+  document.getElementById("btn-save-dow").addEventListener("click", async () => {
+    const msg = document.getElementById("dow-msg");
+    const btn = document.getElementById("btn-save-dow");
+    btn.disabled = true; msg.textContent = "Salvando..."; msg.style.color = "";
+
+    let errors = [];
+    const pairs = Object.entries(DOW_MAP);
+    for (const [day, id] of pairs) {
+      const val = document.getElementById(id).value;
+      if (val === "" || val === "—") continue;
+      const cap = parseInt(val);
+      if (isNaN(cap) || cap < 0) { errors.push(day); continue; }
+      try {
+        await API.fetch("/admin/spot-capacity", { method: "PUT", body: JSON.stringify({ day_of_week: day, capacity: cap }) });
+      } catch(e) { errors.push(`${day}: ${e.message}`); }
+    }
+
+    if (errors.length) {
+      msg.style.color = "var(--danger)"; msg.textContent = "Erros: " + errors.join(", ");
+    } else {
+      msg.style.color = "var(--success)"; msg.textContent = "Capacidades salvas!";
+    }
+    btn.disabled = false;
+    loadCapacity();
+  });
+
+  // ── Override ──────────────────────────────────────────────────────────────
+  document.getElementById("btn-add-override").addEventListener("click", async () => {
+    const date = document.getElementById("override-date").value;
+    const cap  = parseInt(document.getElementById("override-cap").value);
+    const msg  = document.getElementById("override-msg");
+
+    if (!date) { msg.style.color = "var(--danger)"; msg.textContent = "Selecione uma data."; return; }
+    if (isNaN(cap) || cap < 0) { msg.style.color = "var(--danger)"; msg.textContent = "Capacidade inválida."; return; }
+
+    try {
+      await API.fetch("/admin/spot-capacity", { method: "PUT", body: JSON.stringify({ specific_date: date, capacity: cap }) });
+      msg.style.color = "var(--success)"; msg.textContent = "Definido!";
+      document.getElementById("override-date").value = "";
+      document.getElementById("override-cap").value = "";
+      loadCapacity();
+    } catch(e) {
+      msg.style.color = "var(--danger)"; msg.textContent = e.message || "Erro.";
+    }
+  });
+
+  // ── Departments ───────────────────────────────────────────────────────────
+  let departments = [];
+
+  async function loadDepts() {
+    try {
+      departments = await API.fetch("/admin/departments");
+      renderDepts();
+    } catch(e) {
+      document.getElementById("dept-list").innerHTML = `<p style="color:var(--danger)">${e.message}</p>`;
+    }
+  }
+
+  function renderDepts() {
+    const el = document.getElementById("dept-list");
+    if (departments.length === 0) { el.innerHTML = '<p style="color:var(--text-muted)">Nenhum departamento cadastrado.</p>'; return; }
+    el.innerHTML = "";
+    departments.forEach(d => {
+      const row = document.createElement("div");
+      row.className = "dept-row";
+      const enabled = d.can_book_spot;
+      row.innerHTML = `
+        <div>
+          <div class="dept-name">${esc(d.name)}</div>
+        </div>
+        <div style="display:flex;gap:.5rem;align-items:center">
+          <button class="toggle-btn ${enabled?"toggle-on":"toggle-off"}" onclick="toggleDept(${d.id},${!!enabled})">
+            ${enabled ? "Habilitado" : "Desabilitado"}
+          </button>
+          <button class="btn btn-danger btn-sm" onclick="deleteDept(${d.id},'${esc(d.name)}')">Remover</button>
+        </div>
+      `;
+      el.appendChild(row);
+    });
+  }
+
+  async function toggleDept(id, current) {
+    const msg = document.getElementById("dept-msg");
+    try {
+      await API.fetch(`/admin/departments/${id}`, {
+        method: "PUT",
+        body: JSON.stringify({ can_book_spot: !current }),
+      });
+      msg.style.color = "var(--success)"; msg.textContent = "Departamento atualizado.";
+      loadDepts();
+    } catch(e) {
+      msg.style.color = "var(--danger)"; msg.textContent = e.message || "Erro.";
+    }
+  }
+
+  document.getElementById("btn-add-dept").addEventListener("click", async () => {
+    const msg  = document.getElementById("dept-msg");
+    const name = document.getElementById("new-dept-name").value.trim();
+    const enabled = document.getElementById("new-dept-enabled").checked;
+    if (!name) { msg.style.color = "var(--danger)"; msg.textContent = "Informe o nome do departamento."; return; }
+    try {
+      await API.fetch("/admin/departments", {
+        method: "POST",
+        body: JSON.stringify({ name, can_book_spot: enabled }),
+      });
+      msg.style.color = "var(--success)"; msg.textContent = "Departamento adicionado!";
+      document.getElementById("new-dept-name").value = "";
+      loadDepts();
+    } catch(e) {
+      msg.style.color = "var(--danger)"; msg.textContent = e.message || "Erro.";
+    }
+  });
+
+  async function deleteDept(id, name) {
+    if (!confirm(`Remover o departamento "${name}"?`)) return;
+    const msg = document.getElementById("dept-msg");
+    try {
+      await API.fetch(`/admin/departments/${id}`, { method: "DELETE" });
+      msg.style.color = "var(--success)"; msg.textContent = "Departamento removido.";
+      loadDepts();
+    } catch(e) {
+      msg.style.color = "var(--danger)"; msg.textContent = e.message || "Erro.";
+    }
+  }
+
+  function esc(s) { return String(s||"").replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;"); }
+
+  // ── Init ──────────────────────────────────────────────────────────────────
+  loadCapacity();
+  loadDepts();
+</script>
+</body>
+</html>

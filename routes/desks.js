@@ -102,9 +102,11 @@ router.put("/:id/type", authMiddleware, adminMiddleware, (req, res) => {
   const desk = db.prepare("SELECT * FROM desks WHERE id = ?").get(deskId);
   if (!desk) return res.status(404).json({ error: "Mesa não encontrada." });
 
+  let ownerName = null;
   if (owner_id) {
-    const owner = db.prepare("SELECT id FROM users WHERE id = ?").get(owner_id);
+    const owner = db.prepare("SELECT id, name FROM users WHERE id = ?").get(owner_id);
     if (!owner) return res.status(404).json({ error: "Usuário dono não encontrado." });
+    ownerName = owner.name;
   }
 
   // Se estiver voltando de fixed para rotative, limpa rotative_days default
@@ -115,8 +117,9 @@ router.put("/:id/type", authMiddleware, adminMiddleware, (req, res) => {
   ).run(type, owner_id ?? null, newRotativeDays, deskId);
 
   auditLog(req.user.id, req.user.name, "update_desk_type", "desk", deskId, {
+    desk_name: desk.name,
     type,
-    owner_id: type === "fixed" ? owner_id : null,
+    owner_name: type === "fixed" ? ownerName : null,
   });
 
   const updated = db.prepare("SELECT * FROM desks WHERE id = ?").get(deskId);

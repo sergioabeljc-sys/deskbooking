@@ -11,9 +11,12 @@ let adminToken;
 let userToken;
 let roomId;
 
-// Datas relativas a hoje para respeitar limite de 30 dias
+// Datas relativas a hoje para respeitar limite de 30 dias, pulando fins de semana
 function addDays(n) {
   const d = new Date(Date.now() + n * 24 * 60 * 60 * 1000);
+  const dow = d.getUTCDay();
+  if (dow === 6) d.setUTCDate(d.getUTCDate() + 2); // Sáb → Seg
+  if (dow === 0) d.setUTCDate(d.getUTCDate() + 1); // Dom → Seg
   return d.toISOString().slice(0, 10);
 }
 

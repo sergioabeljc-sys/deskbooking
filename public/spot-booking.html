@@ -1,0 +1,683 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Reservar Vaga — WorkPlace</title>
+  <link rel="stylesheet" href="/css/style.css" />
+  <link rel="icon" type="image/svg+xml" href="/img/favicon.svg" />
+  <style>
+    .page-content { max-width: 860px; margin: 1.5rem auto; padding: 0 1rem 3rem; }
+
+    /* Calendar */
+    .cal-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: .75rem; }
+    .cal-header h3 { font-size: 1rem; font-weight: 600; }
+    .cal-grid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 4px; }
+    .cal-dow { text-align: center; font-size: .72rem; font-weight: 600; color: var(--text-muted); padding: .25rem 0; }
+    .cal-day {
+      aspect-ratio: 1;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      border-radius: 6px;
+      font-size: .85rem;
+      cursor: pointer;
+      border: 1px solid transparent;
+      transition: background .12s, border-color .12s;
+      user-select: none;
+    }
+    .cal-day:hover:not(.empty):not(.past):not(.unavailable) { background: #dbeafe; border-color: var(--primary); }
+    .cal-day.selected { background: var(--primary); color: #fff; border-color: var(--primary); font-weight: 600; }
+    .cal-day.today { border-color: var(--primary); font-weight: 600; }
+    .cal-day.today.selected { background: var(--primary); color: #fff; }
+    .cal-day.past { color: #ccc; cursor: not-allowed; }
+    .cal-day.weekend { color: #d1d5db; cursor: not-allowed; background: #fafafa; }
+    .cal-day.unavailable { color: #f87171; cursor: not-allowed; }
+    .cal-day.empty { pointer-events: none; }
+    .cal-day.has-avail { background: #dcfce7; border-color: #16a34a; }
+    .cal-day.has-booking { background: #dbeafe; border-color: #3b82f6; }
+    .cal-day.has-fixed { background: #fef3c7; border-color: #d97706; }
+    .cal-day.has-booking.selected { background: var(--primary); border-color: var(--primary); }
+    .cal-day.has-avail.selected { background: var(--primary); border-color: var(--primary); }
+    .cal-day.has-fixed.selected { background: var(--primary); border-color: var(--primary); }
+
+    /* Time row */
+    .time-row { display: flex; align-items: center; gap: .75rem; flex-wrap: wrap; margin-top: 1rem; }
+    .time-row label { font-size: .875rem; font-weight: 500; white-space: nowrap; }
+    .time-row select {
+      padding: .4rem .6rem;
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      font-size: .875rem;
+      background: var(--surface);
+      outline: none;
+    }
+    .time-row select:focus { border-color: var(--primary); }
+
+    /* Availability badge */
+    .avail-badge {
+      display: inline-flex; align-items: center; gap: .4rem;
+      padding: .3rem .75rem; border-radius: 20px; font-size: .8rem; font-weight: 600;
+    }
+    .avail-ok { background: #dcfce7; color: #15803d; }
+    .avail-low { background: #fef9c3; color: #92400e; }
+    .avail-none { background: #fee2e2; color: #b91c1c; }
+
+    /* Booking list */
+    .booking-item {
+      display: flex; align-items: center; justify-content: space-between;
+      padding: .65rem 1rem; border: 1px solid var(--border); border-radius: var(--radius);
+      background: var(--surface); gap: .5rem;
+    }
+    .booking-item + .booking-item { margin-top: .5rem; }
+    .booking-date { font-weight: 600; font-size: .9rem; }
+    .booking-time { font-size: .8rem; color: var(--text-muted); }
+
+    .selected-date-label { font-size: .875rem; font-weight: 600; color: var(--primary); margin-top: .75rem; min-height: 1.25rem; }
+  </style>
+</head>
+<body>
+
+<header class="header">
+  <div class="header-brand">WorkPlace<span class="header-brand-sub">Barra Funda · SP</span></div>
+  <div class="header-user">
+    <div class="header-nav"><a href="/week.html">Presenças</a></div>
+    <div class="header-nav"><a href="/spot-booking.html" style="color:var(--primary);font-weight:600">Reservar Vaga</a></div>
+    <div class="header-nav"><a href="/rooms.html">Salas</a></div>
+    <div class="header-nav" id="admin-link" style="display:none"><a href="/admin-users.html">Admin</a></div>
+    <span id="user-name" style="font-size:.85rem;color:var(--text-muted)"></span>
+    <button class="btn btn-ghost btn-sm" onclick="logout()">Sair</button>
+  </div>
+</header>
+
+<div class="page-content">
+
+  <div style="display:grid;grid-template-columns:1fr 340px;gap:1.5rem;align-items:start">
+
+    <!-- LEFT: Calendar + time -->
+    <div>
+      <div class="card">
+        <div class="card-header">Selecionar Data</div>
+        <div class="card-body" style="padding:1.25rem">
+
+          <div style="display:inline-flex;align-items:center;gap:.35rem;background:var(--bg);border:1px solid var(--border);border-radius:20px;padding:.25rem .75rem;font-size:.775rem;font-weight:500;color:var(--text-muted);margin-bottom:.875rem">
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M21 10c0 7-9 13-9 13S3 17 3 10a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/></svg>
+            Escritório Barra Funda · SP
+          </div>
+
+          <div class="cal-header">
+            <button class="btn btn-ghost btn-sm" id="prev-month">&#8592;</button>
+            <h3 id="cal-month-label"></h3>
+            <button class="btn btn-ghost btn-sm" id="next-month">&#8594;</button>
+          </div>
+
+          <div class="cal-grid" id="cal-grid">
+            <div class="cal-dow">D</div>
+            <div class="cal-dow">S</div>
+            <div class="cal-dow">T</div>
+            <div class="cal-dow">Q</div>
+            <div class="cal-dow">Q</div>
+            <div class="cal-dow">S</div>
+            <div class="cal-dow">S</div>
+          </div>
+
+          <div id="cal-legend" style="display:flex;gap:1rem;margin:.75rem 0 .25rem;flex-wrap:wrap">
+            <span style="display:flex;align-items:center;gap:.35rem;font-size:.75rem;color:var(--text-muted)">
+              <span style="width:12px;height:12px;border-radius:3px;background:#dbeafe;border:1px solid #3b82f6;display:inline-block"></span>
+              Reserva avulsa
+            </span>
+            <span id="legend-fixed" style="display:none;align-items:center;gap:.35rem;font-size:.75rem;color:var(--text-muted)">
+              <span style="width:12px;height:12px;border-radius:3px;background:#fef3c7;border:1px solid #d97706;display:inline-block"></span>
+              Mesa fixa
+            </span>
+            <span style="display:flex;align-items:center;gap:.35rem;font-size:.75rem;color:var(--text-muted)">
+              <span style="width:12px;height:12px;border-radius:3px;background:#dcfce7;border:1px solid #16a34a;display:inline-block"></span>
+              Vagas disponíveis
+            </span>
+          </div>
+
+          <div class="time-row">
+            <label>Entrada:</label>
+            <select id="start-time"></select>
+            <label>Saída:</label>
+            <select id="end-time"></select>
+            <span id="avail-badge" class="avail-badge avail-ok" style="display:none"></span>
+          </div>
+
+          <div class="selected-date-label" id="selected-date-label"></div>
+
+          <button class="btn btn-primary" id="btn-book" style="margin-top:.75rem;width:100%" disabled>
+            Reservar Vaga
+          </button>
+          <div id="book-msg" style="margin-top:.75rem;font-size:.85rem"></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- RIGHT: My bookings + Minha Mesa -->
+    <div style="display:flex;flex-direction:column;gap:1rem">
+      <div class="card">
+        <div class="card-header">Minhas Reservas</div>
+        <div class="card-body" style="padding:1rem">
+          <div id="my-bookings">
+            <p style="color:var(--text-muted);font-size:.875rem">Carregando...</p>
+          </div>
+        </div>
+      </div>
+      <div class="card" id="my-desk-card" style="display:none">
+        <div class="card-header">Minha Mesa</div>
+        <div class="card-body" style="padding:1rem" id="my-desk-body"></div>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<!-- Info popup -->
+<style>
+  #info-overlay {
+    display: none;
+    position: fixed;
+    inset: 0;
+    background: rgba(15, 23, 42, .25);
+    backdrop-filter: blur(2px);
+    z-index: 500;
+    align-items: center;
+    justify-content: center;
+  }
+  #info-overlay.open {
+    display: flex;
+    animation: fadeInOverlay .18s ease;
+  }
+  @keyframes fadeInOverlay {
+    from { opacity: 0; }
+    to   { opacity: 1; }
+  }
+  #info-card {
+    background: #fff;
+    border-radius: 14px;
+    box-shadow: 0 12px 40px rgba(15,23,42,.12), 0 2px 8px rgba(15,23,42,.06);
+    max-width: 380px;
+    width: 90%;
+    overflow: hidden;
+    animation: slideUp .2s ease;
+  }
+  @keyframes slideUp {
+    from { opacity: 0; transform: translateY(12px); }
+    to   { opacity: 1; transform: translateY(0); }
+  }
+  #info-card-bar {
+    height: 4px;
+    background: linear-gradient(90deg, #94a3b8, #cbd5e1);
+  }
+  #info-card-body {
+    padding: 1.5rem 1.5rem 1.25rem;
+    text-align: center;
+  }
+  #info-card-icon {
+    font-size: 1.6rem;
+    line-height: 1;
+    margin-bottom: .6rem;
+  }
+  #info-card-title {
+    font-size: .7rem;
+    font-weight: 700;
+    letter-spacing: .08em;
+    text-transform: uppercase;
+    color: #94a3b8;
+    margin: 0 0 .5rem;
+  }
+  #info-msg {
+    font-size: .9rem;
+    color: #374151;
+    line-height: 1.6;
+    margin: 0 0 1.25rem;
+  }
+  #info-close-btn {
+    background: #f8fafc;
+    border: 1px solid #e2e8f0;
+    border-radius: 8px;
+    padding: .5rem 1.75rem;
+    font-size: .875rem;
+    font-weight: 600;
+    color: #475569;
+    cursor: pointer;
+    transition: background .15s, border-color .15s;
+  }
+  #info-close-btn:hover {
+    background: #f1f5f9;
+    border-color: #cbd5e1;
+  }
+</style>
+
+<div id="info-overlay">
+  <div id="info-card">
+    <div id="info-card-bar"></div>
+    <div id="info-card-body">
+      <div id="info-card-icon">💬</div>
+      <p id="info-card-title">Atenção</p>
+      <p id="info-msg"></p>
+      <button id="info-close-btn" onclick="closeInfoPopup()">Ok, entendi</button>
+    </div>
+  </div>
+</div>
+
+<script src="/js/api.js"></script>
+<script>
+  // ── Info popup ────────────────────────────────────────────────────────────
+  function showInfoPopup(msg) {
+    document.getElementById("info-msg").textContent = msg;
+    document.getElementById("info-overlay").classList.add("open");
+  }
+  function closeInfoPopup() {
+    document.getElementById("info-overlay").classList.remove("open");
+  }
+  document.addEventListener("keydown", (e) => {
+    if (e.key === "Escape") closeInfoPopup();
+  });
+  document.getElementById("info-overlay").addEventListener("click", (e) => {
+    if (e.target === document.getElementById("info-overlay")) closeInfoPopup();
+  });
+
+  // ── Auth ──────────────────────────────────────────────────────────────────
+  const _tok = localStorage.getItem("token");
+  if (!_tok) { location.href = "/index.html"; }
+  function parseJwt(t) { try { const b=t.split(".")[1].replace(/-/g,"+").replace(/_/g,"/"); return JSON.parse(new TextDecoder().decode(Uint8Array.from(atob(b),c=>c.charCodeAt(0)))); } catch { return {}; } }
+  const me = parseJwt(_tok);
+  document.getElementById("user-name").textContent = me.name || me.email || "Usuário";
+  if (me.is_admin) document.getElementById("admin-link").style.display = "";
+
+  function logout() { API.clearSession(); location.href = "/index.html"; }
+
+  // ── Time slots ────────────────────────────────────────────────────────────
+  const TIMES = [];
+  for (let h = 8; h <= 18; h++) {
+    TIMES.push(`${String(h).padStart(2,"0")}:00`);
+    if (h < 18) TIMES.push(`${String(h).padStart(2,"0")}:30`);
+  }
+
+  const startSel = document.getElementById("start-time");
+  const endSel   = document.getElementById("end-time");
+
+  TIMES.forEach(t => {
+    startSel.add(new Option(t, t));
+    endSel.add(new Option(t, t));
+  });
+  startSel.value = "09:00";
+  endSel.value   = "18:00";
+
+  // ── Calendar state ────────────────────────────────────────────────────────
+  const today = new Date(); today.setHours(0,0,0,0);
+  const maxDate = new Date(today.getTime() + 30*24*60*60*1000);
+
+  let viewYear  = today.getFullYear();
+  let viewMonth = today.getMonth();
+  let selected  = null; // ISO string ou null
+  let myBookingDates = new Set();
+  let availCache = {};
+  let myDeskInfo = null; // { type, rotDays, rotDaysNext, rotDaysNextFrom }
+
+  const MONTH_PT = ["Janeiro","Fevereiro","Março","Abril","Maio","Junho","Julho","Agosto","Setembro","Outubro","Novembro","Dezembro"];
+  const DOW_SHORT = ["Dom","Seg","Ter","Qua","Qui","Sex","Sáb"];
+
+  function toISO(d) { return d.toISOString().slice(0,10); }
+
+  function parseLocal(iso) {
+    const [y,m,d] = iso.split("-").map(Number);
+    return new Date(y, m-1, d);
+  }
+
+  function formatDate(iso) {
+    const d = parseLocal(iso);
+    return `${DOW_SHORT[d.getDay()]}, ${d.getDate()} ${MONTH_PT[d.getMonth()].slice(0,3)}`;
+  }
+
+  // ── Availability ──────────────────────────────────────────────────────────
+  async function getAvail(iso) {
+    if (availCache[iso] !== undefined) return availCache[iso];
+    try {
+      const data = await API.fetch(`/spots/availability?date=${iso}`);
+      availCache[iso] = data.available;
+      return data.available;
+    } catch { return null; }
+  }
+
+  async function updateAvailBadge() {
+    const badge = document.getElementById("avail-badge");
+    if (!selected) { badge.style.display = "none"; return; }
+    badge.style.display = "";
+    badge.textContent = "...";
+    badge.className = "avail-badge";
+    const avail = await getAvail(selected);
+    if (avail === null) { badge.style.display = "none"; return; }
+    if (avail <= 0) {
+      badge.className = "avail-badge avail-none";
+      badge.textContent = "Sem vagas";
+    } else if (avail <= 3) {
+      badge.className = "avail-badge avail-low";
+      badge.textContent = `${avail} vaga${avail===1?"":"s"} disponível${avail===1?"":"s"}`;
+    } else {
+      badge.className = "avail-badge avail-ok";
+      badge.textContent = `${avail} vagas disponíveis`;
+    }
+  }
+
+  // ── Render calendar ───────────────────────────────────────────────────────
+  function renderCal() {
+    document.getElementById("cal-month-label").textContent = `${MONTH_PT[viewMonth]} ${viewYear}`;
+
+    const grid = document.getElementById("cal-grid");
+    // Keep DOW headers (first 7 children)
+    while (grid.children.length > 7) grid.removeChild(grid.lastChild);
+
+    const firstDay = new Date(viewYear, viewMonth, 1).getDay();
+    const daysInMonth = new Date(viewYear, viewMonth+1, 0).getDate();
+
+    for (let i = 0; i < firstDay; i++) {
+      const el = document.createElement("div");
+      el.className = "cal-day empty";
+      grid.appendChild(el);
+    }
+
+    for (let d = 1; d <= daysInMonth; d++) {
+      const date = new Date(viewYear, viewMonth, d);
+      const iso  = toISO(date);
+      const el   = document.createElement("div");
+      el.className = "cal-day";
+      el.textContent = d;
+
+      const dow = date.getDay();
+      const isWeekend = dow === 0 || dow === 6;
+
+      if (+date < +today || +date > +maxDate) {
+        el.classList.add("past");
+      } else if (isWeekend) {
+        el.classList.add("weekend");
+      } else {
+        el.dataset.iso = iso;
+        if (+date === +today) el.classList.add("today");
+        if (selected === iso) el.classList.add("selected");
+        if (myBookingDates.has(iso) && selected !== iso) el.classList.add("has-booking");
+
+        el.addEventListener("click", () => toggleDate(iso, el));
+      }
+      grid.appendChild(el);
+    }
+
+    colorCalAvailability();
+  }
+
+  const DOW_CODES = ["sun","mon","tue","wed","thu","fri","sat"];
+
+  function isFixedDeskDay(iso) {
+    if (!myDeskInfo) return false;
+    if (myDeskInfo.type === "fixed") return true;
+    if (myDeskInfo.type !== "rotative") return false;
+    const dow = DOW_CODES[new Date(iso + "T12:00:00Z").getUTCDay()];
+    // Determina config efetiva: usa next se iso >= rotative_days_next_from
+    const effectiveDays = (myDeskInfo.rotDaysNextFrom && iso >= myDeskInfo.rotDaysNextFrom)
+      ? myDeskInfo.rotDaysNext
+      : myDeskInfo.rotDays;
+    return !effectiveDays.includes(dow);
+  }
+
+  async function colorCalAvailability() {
+    const grid = document.getElementById("cal-grid");
+    const days = grid.querySelectorAll(".cal-day:not(.empty):not(.past):not(.weekend)");
+    await Promise.all([...days].map(async (el) => {
+      const iso = el.dataset.iso;
+      if (!iso) return;
+      // Prioridade: has-booking > has-fixed > has-avail
+      if (myBookingDates.has(iso)) return;
+      if (isFixedDeskDay(iso)) {
+        el.classList.add("has-fixed");
+        el.classList.remove("has-avail");
+        return;
+      }
+      el.classList.remove("has-fixed");
+      const avail = await getAvail(iso);
+      if (avail > 0) el.classList.add("has-avail");
+      else el.classList.remove("has-avail");
+    }));
+  }
+
+  function toggleDate(iso) {
+    selected = (selected === iso) ? null : iso;
+    const label = document.getElementById("selected-date-label");
+    label.textContent = selected ? formatDate(selected) : "";
+    renderCal();
+    updateBookBtn();
+    updateAvailBadge();
+  }
+
+  function updateBookBtn() {
+    const st = startSel.value, en = endSel.value;
+    document.getElementById("btn-book").disabled =
+      !selected || !st || !en || en <= st;
+  }
+
+  startSel.addEventListener("change", updateBookBtn);
+  endSel.addEventListener("change", updateBookBtn);
+
+  // ── Book ──────────────────────────────────────────────────────────────────
+  document.getElementById("btn-book").addEventListener("click", async () => {
+    const btn = document.getElementById("btn-book");
+    const msg = document.getElementById("book-msg");
+    btn.disabled = true;
+    msg.textContent = "Reservando...";
+    msg.style.color = "";
+
+    try {
+      const res = await fetch("/api/spots/bookings", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${_tok}` },
+        body: JSON.stringify({
+          dates: [selected],
+          start_time: startSel.value,
+          end_time: endSel.value,
+        }),
+      });
+      const data = await res.json();
+
+      if (data.created?.length > 0) {
+        showToast("Reserva confirmada!", "success");
+        selected = null;
+        document.getElementById("selected-date-label").textContent = "";
+        msg.textContent = "";
+        availCache = {};
+        renderCal();
+        loadMyBookings();
+      } else {
+        const errMsg = data.errors?.[0]?.error || data.error || "Erro ao reservar.";
+        showInfoPopup(errMsg);
+        btn.disabled = false;
+      }
+    } catch (e) {
+      showInfoPopup("Não foi possível completar a reserva. Verifique sua conexão e tente novamente.");
+      btn.disabled = false;
+    }
+    btn.disabled = !selected;
+  });
+
+  // ── My bookings ───────────────────────────────────────────────────────────
+  async function loadMyBookings() {
+    const el = document.getElementById("my-bookings");
+    el.innerHTML = '<p style="color:var(--text-muted);font-size:.875rem">Carregando...</p>';
+    try {
+      const bookings = await API.get("/spots/my-bookings");
+
+      myBookingDates = new Set(bookings.map(b => b.date));
+      renderCal();
+
+      if (bookings.length === 0) {
+        el.innerHTML = '<p style="color:var(--text-muted);font-size:.875rem">Nenhuma reserva futura.</p>';
+        return;
+      }
+
+      el.innerHTML = "";
+      bookings.forEach(b => {
+        const div = document.createElement("div");
+        div.className = "booking-item";
+        const canCancel = (new Date(`${b.date}T${b.start_time}:00`) - new Date()) > 24 * 60 * 60 * 1000;
+        div.innerHTML = `
+          <div style="display:flex;align-items:center;justify-content:space-between;gap:.5rem">
+            <div>
+              <div class="booking-date">${formatDate(b.date)}</div>
+              <div class="booking-time">${b.start_time} – ${b.end_time}</div>
+            </div>
+            ${canCancel
+              ? `<button class="btn btn-danger btn-sm" onclick="cancelSpotBooking(${b.id})">Cancelar</button>`
+              : `<span style="font-size:.75rem;color:var(--text-muted)">+24h</span>`}
+          </div>
+        `;
+        el.appendChild(div);
+      });
+    } catch(e) {
+      el.innerHTML = `<p style="color:var(--danger);font-size:.875rem">${e.message}</p>`;
+    }
+  }
+
+  async function cancelSpotBooking(id) {
+    if (!confirm("Cancelar esta reserva de vaga?")) return;
+    try {
+      await API.delete(`/spots/bookings/${id}`);
+      showToast("Reserva cancelada.");
+      loadMyBookings();
+    } catch(err) {
+      showToast(err.message, "error");
+    }
+  }
+
+  function getMonday(d) {
+    const day = d.getDay();
+    const diff = day === 0 ? -6 : 1 - day;
+    const m = new Date(d); m.setDate(d.getDate()+diff); return m;
+  }
+
+  // ── Navigation ────────────────────────────────────────────────────────────
+  document.getElementById("prev-month").addEventListener("click", () => {
+    viewMonth--; if (viewMonth < 0) { viewMonth = 11; viewYear--; }
+    renderCal();
+  });
+  document.getElementById("next-month").addEventListener("click", () => {
+    viewMonth++; if (viewMonth > 11) { viewMonth = 0; viewYear++; }
+    renderCal();
+  });
+
+  // ── Minha Mesa (dono) ─────────────────────────────────────────────────────
+  const DAY_LABELS_DESK = { mon:"Segunda", tue:"Terça", wed:"Quarta", thu:"Quinta", fri:"Sexta" };
+  const ALL_DAYS_DESK   = ["mon","tue","wed","thu","fri"];
+
+  async function loadMyDesk() {
+    try {
+      const desks = await API.get("/desks");
+      const myDesk = desks.find((d) => d.owner_id === me.id);
+      if (!myDesk) return;
+
+      // Popula info global para coloração do calendário
+      myDeskInfo = {
+        type: myDesk.type,
+        rotDays:        (() => { try { return JSON.parse(myDesk.rotative_days      || "[]"); } catch { return []; } })(),
+        rotDaysNext:    (() => { try { return JSON.parse(myDesk.rotative_days_next || "[]"); } catch { return []; } })(),
+        rotDaysNextFrom: myDesk.rotative_days_next_from || null,
+      };
+      document.getElementById("legend-fixed").style.display = "flex";
+      renderCal();
+
+      const card = document.getElementById("my-desk-card");
+      const body = document.getElementById("my-desk-body");
+      card.style.display = "";
+
+      if (myDesk.type === "fixed") {
+        body.innerHTML = `
+          <p style="font-size:.8rem;color:var(--text-muted)">Mesa exclusiva — reservada para você todos os dias.</p>`;
+        return;
+      }
+
+      const rotDays     = (() => { try { return JSON.parse(myDesk.rotative_days      || "[]"); } catch { return []; } })();
+      const rotDaysNext = (() => { try { return JSON.parse(myDesk.rotative_days_next || "[]"); } catch { return []; } })();
+      const hasPending  = !!myDesk.rotative_days_next_from;
+      const editDays    = hasPending ? rotDaysNext : rotDays;
+
+      // Datas da semana atual e próxima semana (seg–sex)
+      const _now = new Date();
+      const _dow = _now.getDay();
+      const _mon = new Date(_now); _mon.setDate(_now.getDate() - (_dow === 0 ? 6 : _dow - 1));
+      const _nextMon = new Date(_mon); _nextMon.setDate(_mon.getDate() + 7);
+      const fmtDate = (base, i) => {
+        const dt = new Date(base); dt.setDate(base.getDate() + i);
+        return `${String(dt.getDate()).padStart(2,"0")}/${String(dt.getMonth()+1).padStart(2,"0")}`;
+      };
+      const currentWeekDates = ALL_DAYS_DESK.reduce((acc, d, i) => { acc[d] = fmtDate(_mon, i); return acc; }, {});
+      const nextWeekDates    = ALL_DAYS_DESK.reduce((acc, d, i) => { acc[d] = fmtDate(_nextMon, i); return acc; }, {});
+
+      // Sexta-feira ao meio-dia da semana atual como prazo de alteração
+      const _fri = new Date(_mon); _fri.setDate(_mon.getDate() + 4); _fri.setHours(12, 0, 0, 0);
+      const _friLabel = `${String(_fri.getDate()).padStart(2,"0")}/${String(_fri.getMonth()+1).padStart(2,"0")} às 12h`;
+      const isPastDeadline = _now > _fri;
+
+      const dayRow = (d, checked, editable, dateLabel) => editable
+        ? `<label style="display:flex;align-items:center;gap:.5rem;font-size:.875rem;cursor:pointer">
+             <input type="checkbox" value="${d}" ${checked ? "checked" : ""} style="width:15px;height:15px;cursor:pointer">
+             ${DAY_LABELS_DESK[d]}
+             <span style="font-size:.75rem;color:var(--text-muted);margin-left:auto;display:flex;gap:.5rem;align-items:center">
+               <span style="color:#d1d5db">${dateLabel}</span>
+               <span>${checked ? "no pool" : "sua mesa"}</span>
+             </span>
+           </label>`
+        : `<div style="display:flex;align-items:center;gap:.5rem;font-size:.875rem;color:#9ca3af">
+             <input type="checkbox" disabled ${checked ? "checked" : ""} style="width:15px;height:15px">
+             ${DAY_LABELS_DESK[d]}
+             <span style="font-size:.75rem;margin-left:auto;display:flex;gap:.5rem;align-items:center">
+               <span style="color:#d1d5db">${dateLabel}</span>
+               <span>${checked ? "no pool" : "sua mesa"}</span>
+             </span>
+           </div>`;
+
+      body.innerHTML = `
+        <p style="font-size:.72rem;font-weight:600;text-transform:uppercase;letter-spacing:.5px;color:var(--text-muted);margin-bottom:.35rem">
+          🔒 Semana atual
+        </p>
+        <div style="display:flex;flex-direction:column;gap:.35rem;margin-bottom:.85rem">
+          ${ALL_DAYS_DESK.map(d => dayRow(d, rotDays.includes(d), false, currentWeekDates[d])).join("")}
+        </div>
+
+        <p style="font-size:.72rem;font-weight:600;text-transform:uppercase;letter-spacing:.5px;color:var(--primary);margin-bottom:.35rem">
+          ✏️ Próxima semana${hasPending ? ` · a partir de ${myDesk.rotative_days_next_from}` : ""}
+        </p>
+        <div style="font-size:.75rem;background:#f0fdf4;border:1px solid #bbf7d0;border-radius:6px;padding:.4rem .65rem;margin-bottom:.5rem;color:#166534">
+          A configuração da próxima semana se repete para todas as semanas seguintes até uma nova alteração.
+        </div>
+        <div style="display:flex;flex-direction:column;gap:.4rem" id="my-desk-days">
+          ${ALL_DAYS_DESK.map(d => dayRow(d, editDays.includes(d), true, nextWeekDates[d])).join("")}
+        </div>
+        ${isPastDeadline
+          ? `<div style="font-size:.75rem;background:#fef2f2;border:1px solid #fecaca;border-radius:6px;padding:.4rem .65rem;margin-top:.65rem;color:#991b1b">
+               Prazo encerrado. Alterações só são aceitas até sexta-feira ao meio-dia (${_friLabel}).
+             </div>`
+          : `<div style="font-size:.75rem;color:var(--text-muted);margin-top:.5rem">
+               Prazo para alteração: sexta-feira ${_friLabel}.
+             </div>`
+        }
+        <button class="btn btn-primary btn-sm" style="margin-top:.65rem;width:100%" onclick="saveMyDeskDays(${myDesk.id})" ${isPastDeadline ? "disabled" : ""}>Salvar próxima semana</button>
+      `;
+    } catch {}
+  }
+
+  async function saveMyDeskDays(deskId) {
+    const days = [...document.querySelectorAll("#my-desk-days input[type=checkbox]")]
+      .filter((c) => c.checked).map((c) => c.value);
+    try {
+      await API.put(`/desks/${deskId}/rotative-days`, { rotative_days: days });
+      showToast("Dias atualizados!");
+      loadMyDesk();
+    } catch (err) { showToast(err.message, "error"); }
+  }
+
+  // ── Init ──────────────────────────────────────────────────────────────────
+  renderCal();
+  loadMyBookings();
+  loadMyDesk();
+</script>
+</body>
+</html>

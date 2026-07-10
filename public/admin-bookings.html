@@ -1,0 +1,132 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Admin — Reservas — WorkPlace</title>
+  <link rel="stylesheet" href="/css/style.css" />
+  <link rel="icon" type="image/svg+xml" href="/img/favicon.svg" />
+  <style>
+    .page-content { max-width: 960px; margin: 1.5rem auto; padding: 0 1rem 3rem; }
+    .admin-tabs { display: flex; gap: .25rem; padding: 0 1rem; border-bottom: 1px solid var(--border); background: var(--surface); flex-wrap: wrap; }
+    .admin-tab { padding: .75rem 1.25rem; font-size: .875rem; font-weight: 500; color: var(--text-muted); cursor: pointer; border-bottom: 2px solid transparent; margin-bottom: -1px; text-decoration: none; }
+    .admin-tab:hover { color: var(--text); }
+    .admin-tab.active { color: var(--primary); border-bottom-color: var(--primary); }
+    .table-wrap { overflow-x: auto; }
+    table { width: 100%; border-collapse: collapse; font-size: .875rem; }
+    th { text-align: left; padding: .5rem .75rem; font-size: .75rem; font-weight: 600; color: var(--text-muted); text-transform: uppercase; letter-spacing: .4px; border-bottom: 2px solid var(--border); }
+    td { padding: .6rem .75rem; border-bottom: 1px solid var(--border); vertical-align: middle; }
+    tr:last-child td { border-bottom: none; }
+    tr:hover td { background: #f8fafc; }
+  </style>
+</head>
+<body>
+
+<header class="header">
+  <div class="header-brand">WorkPlace — Admin<span class="header-brand-sub">Barra Funda · SP</span></div>
+  <div class="header-user">
+    <div class="header-nav"><a href="/week.html">Presenças</a></div>
+    <div class="header-nav"><a href="/spot-booking.html">Reservar Vaga</a></div>
+    <div class="header-nav"><a href="/rooms.html">Salas</a></div>
+    <div class="header-nav"><a href="/admin-users.html" style="color:var(--primary);font-weight:600">Admin</a></div>
+    <span id="user-name" style="font-size:.85rem;color:var(--text-muted)"></span>
+    <button class="btn btn-ghost btn-sm" onclick="logout()">Sair</button>
+  </div>
+</header>
+
+<nav class="admin-tabs">
+  <a class="admin-tab" href="/admin-users.html">Usuários</a>
+  <a class="admin-tab" href="/admin-rooms.html">Salas</a>
+  <a class="admin-tab" href="/admin-capacity.html">Vagas &amp; Departamentos</a>
+  <a class="admin-tab" href="/admin-desks.html">Mesas</a>
+  <a class="admin-tab active" href="/admin-bookings.html">Reservas</a>
+  <a class="admin-tab" href="/admin-audit.html">Auditoria</a>
+</nav>
+
+<div class="page-content">
+  <div class="card">
+    <div class="card-header">
+      <div>
+        Todas as Reservas de Vaga
+        <span style="font-size:.8rem;font-weight:400;color:var(--text-muted);margin-left:.5rem">Escritório Barra Funda · SP</span>
+      </div>
+      <div style="display:flex;gap:.5rem;align-items:center;flex-wrap:wrap;">
+        <input type="date" id="filter-from" title="De" style="padding:.3rem .5rem;border:1px solid var(--border);border-radius:var(--radius);font-size:.8125rem;" />
+        <span style="color:var(--text-muted);font-size:.8rem">até</span>
+        <input type="date" id="filter-to" title="Até" style="padding:.3rem .5rem;border:1px solid var(--border);border-radius:var(--radius);font-size:.8125rem;" />
+        <button class="btn btn-ghost btn-sm" onclick="loadBookings(1)">Filtrar</button>
+      </div>
+    </div>
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr>
+            <th>Data</th>
+            <th>Início</th>
+            <th>Fim</th>
+            <th>Usuário</th>
+            <th>Empresa</th>
+            <th></th>
+          </tr>
+        </thead>
+        <tbody id="bookings-body">
+          <tr><td colspan="6" class="empty-state">Carregando...</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <div id="bookings-pagination" style="padding:.75rem 1.25rem;border-top:1px solid var(--border);display:flex;gap:.5rem;align-items:center;flex-wrap:wrap"></div>
+  </div>
+</div>
+
+<script src="/js/api.js"></script>
+<script>
+  const user = requireAuth(true);
+  if (user) document.getElementById("user-name").textContent = user.name;
+
+  let bookingsPage = 1;
+
+  async function loadBookings(page) {
+    if (page !== undefined) bookingsPage = page;
+    const tbody = document.getElementById("bookings-body");
+    const paginEl = document.getElementById("bookings-pagination");
+    const from = document.getElementById("filter-from").value;
+    const to = document.getElementById("filter-to").value;
+    const params = new URLSearchParams({ page: bookingsPage, limit: 50 });
+    if (from) params.set("from", from);
+    if (to) params.set("to", to);
+    try {
+      const result = await API.get(`/spots/bookings/all?${params}`);
+      const bookings = result.data;
+      if (bookings.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="6" class="empty-state">Nenhuma reserva encontrada</td></tr>';
+      } else {
+        tbody.innerHTML = bookings.map((b) => `
+          <tr>
+            <td>${formatDate(b.date)}</td>
+            <td>${escapeHtml(b.start_time)}</td>
+            <td>${escapeHtml(b.end_time)}</td>
+            <td>${escapeHtml(b.user_name)}</td>
+            <td>${escapeHtml(b.company || "—")}</td>
+            <td><button class="btn btn-danger btn-sm" onclick="cancelBooking(${b.id})">Cancelar</button></td>
+          </tr>`).join("");
+      }
+      paginEl.innerHTML = `
+        <span style="color:var(--text-muted);font-size:.875rem">Total: ${result.total} reservas | Página ${result.page} de ${result.pages}</span>
+        <button class="btn btn-ghost btn-sm" onclick="loadBookings(${bookingsPage - 1})" ${bookingsPage <= 1 ? "disabled" : ""}>Anterior</button>
+        <button class="btn btn-ghost btn-sm" onclick="loadBookings(${bookingsPage + 1})" ${bookingsPage >= result.pages ? "disabled" : ""}>Próximo</button>
+      `;
+    } catch (err) {
+      tbody.innerHTML = `<tr><td colspan="6" class="empty-state">${escapeHtml(err.message)}</td></tr>`;
+    }
+  }
+
+  async function cancelBooking(id) {
+    if (!confirm("Cancelar esta reserva?")) return;
+    try { await API.delete(`/spots/bookings/${id}`); showToast("Reserva cancelada"); loadBookings(); }
+    catch (err) { showToast(err.message, "error"); }
+  }
+
+  loadBookings();
+</script>
+</body>
+</html>

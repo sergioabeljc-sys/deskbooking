@@ -167,7 +167,23 @@ describe("Migrations v2", () => {
     expect(versions).toContain("007_v2_access_requests.sql");
     expect(versions).toContain("008_v2_desk_schedule_pending.sql");
     expect(versions).toContain("009_v2_sso_stores.sql");
-    expect(versions.length).toBe(8);
+    expect(versions).toContain("010_v2_preserve_bookings_on_user_delete.sql");
+    expect(versions.length).toBe(9);
+  });
+
+  it("migration 010: reservas passadas sobrevivem com user_id = NULL ao excluir usuário", () => {
+    // Cria dados antes de migrar
+    db.prepare("INSERT INTO users (name, email, password_hash) VALUES ('Ana', 'ana@tenda.com', 'h')").run();
+    db.prepare("INSERT INTO desks (name, pos_x, pos_y) VALUES ('Mesa 01', 1, 1)").run();
+    db.prepare("INSERT INTO bookings (user_id, desk_id, date) VALUES (1, 1, '2025-01-10')").run();
+
+    applyMigrations(db);
+
+    // Após migração, user_id é nullable — deletar usuário deve NULLar a reserva, não excluí-la
+    db.prepare("DELETE FROM users WHERE id = 1").run();
+    const booking = db.prepare("SELECT * FROM bookings WHERE desk_id = 1").get();
+    expect(booking).toBeTruthy();
+    expect(booking.user_id).toBeNull();
   });
 
   it("não aplica migração já registrada em schema_version", () => {

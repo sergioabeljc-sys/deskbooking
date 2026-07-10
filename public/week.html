@@ -3,46 +3,10 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Presenças Semanais — Desk Booking</title>
+  <title>Presenças Semanais — WorkPlace</title>
+  <link rel="stylesheet" href="/css/style.css" />
+  <link rel="icon" type="image/svg+xml" href="/img/favicon.svg" />
   <style>
-    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
-
-    body {
-      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
-      background: #f0f2f5;
-      color: #1a1a2e;
-      min-height: 100vh;
-    }
-
-    /* ── Header ───────────────────────────────────────────────────────────── */
-    header {
-      background: #1e3a5f;
-      color: #fff;
-      padding: 0 24px;
-      height: 56px;
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      box-shadow: 0 2px 8px rgba(0,0,0,.25);
-    }
-    header h1 { font-size: 1.1rem; font-weight: 600; letter-spacing: .3px; }
-    header nav { display: flex; gap: 12px; align-items: center; }
-    header nav a {
-      color: rgba(255,255,255,.8);
-      text-decoration: none;
-      font-size: .85rem;
-      padding: 4px 10px;
-      border-radius: 4px;
-      transition: background .15s;
-    }
-    header nav a:hover { background: rgba(255,255,255,.15); color: #fff; }
-    #user-badge {
-      font-size: .8rem;
-      background: rgba(255,255,255,.15);
-      padding: 4px 10px;
-      border-radius: 12px;
-    }
-
     /* ── Week nav ─────────────────────────────────────────────────────────── */
     .week-nav {
       display: flex;
@@ -52,7 +16,7 @@
       padding: 20px 24px 12px;
     }
     .week-nav button {
-      background: #1e3a5f;
+      background: var(--primary);
       color: #fff;
       border: none;
       border-radius: 6px;
@@ -61,18 +25,18 @@
       font-size: .9rem;
       transition: background .15s;
     }
-    .week-nav button:hover { background: #2d5590; }
+    .week-nav button:hover { background: var(--primary-hover); }
     #week-label {
       font-size: 1rem;
       font-weight: 600;
       min-width: 260px;
       text-align: center;
-      color: #1e3a5f;
+      color: var(--text);
     }
     .today-btn {
       background: transparent !important;
-      color: #1e3a5f !important;
-      border: 1px solid #1e3a5f !important;
+      color: var(--primary) !important;
+      border: 1px solid var(--primary) !important;
       font-size: .8rem !important;
       padding: 5px 12px !important;
     }
@@ -86,95 +50,145 @@
     }
 
     .day-col {
-      background: #fff;
-      border-radius: 10px;
+      background: var(--surface);
+      border-radius: var(--radius);
       box-shadow: 0 1px 4px rgba(0,0,0,.08);
       overflow: hidden;
       min-height: 300px;
     }
 
     .day-header {
-      background: #1e3a5f;
+      background: var(--primary);
       color: #fff;
       padding: 12px 14px;
       cursor: pointer;
       transition: background .15s;
     }
-    .day-header:hover { background: #2d5590; }
+    .day-header:hover { background: var(--primary-hover); }
     .day-header .day-name { font-size: .85rem; font-weight: 600; text-transform: uppercase; letter-spacing: .5px; }
     .day-header .day-date { font-size: 1.4rem; font-weight: 700; line-height: 1.1; margin-top: 2px; }
-    .day-header .day-count {
-      font-size: .75rem;
-      margin-top: 4px;
-      opacity: .8;
-    }
+    .day-header .day-count { font-size: .75rem; margin-top: 4px; opacity: .8; }
     .day-header.today-col { background: #0d6efd; }
 
     .people-list { padding: 10px; display: flex; flex-direction: column; gap: 8px; }
 
     .person-card {
-      border: 1px solid #e8ecf0;
-      border-radius: 8px;
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
       padding: 10px 12px;
-      background: #fafbfc;
+      background: var(--bg);
       transition: box-shadow .15s;
     }
     .person-card:hover { box-shadow: 0 2px 8px rgba(0,0,0,.1); }
 
     .person-name { font-size: .9rem; font-weight: 600; margin-bottom: 2px; }
-    .person-email { font-size: .75rem; color: #6c757d; margin-bottom: 6px; word-break: break-all; }
+    .person-email { font-size: .75rem; color: var(--text-muted); margin-bottom: 6px; word-break: break-all; }
     .person-meta { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 4px; }
 
     .company-badge {
-      font-size: .68rem;
-      font-weight: 600;
-      padding: 2px 7px;
-      border-radius: 10px;
-      text-transform: uppercase;
-      letter-spacing: .3px;
+      font-size: .68rem; font-weight: 600;
+      padding: 2px 7px; border-radius: 10px;
+      text-transform: uppercase; letter-spacing: .3px;
     }
-    .badge-tenda { background: #d4edda; color: #155724; }
-    .badge-voxcred { background: #cce5ff; color: #004085; }
+    .badge-tenda   { background: #C8D8F0; color: #1a3a6e; }
+    .badge-voxcred { background: #FFD4A0; color: #7A3800; }
     .badge-unknown { background: #e2e3e5; color: #383d41; }
 
-    .person-time { font-size: .75rem; color: #495057; }
+    .person-time { font-size: .75rem; color: var(--text-muted); }
+
+    .person-card-auto { border-color: #c8d8f0; background: #f0f5ff; }
+    .person-auto-badge { font-size: .75rem; color: #1a3a6e; font-weight: 600; }
+    .person-card-me { border-color: #a3c4a8; background: #f0faf1; box-shadow: 0 0 0 2px #d1ead4; }
 
     .empty-col {
-      padding: 20px 14px;
-      text-align: center;
-      color: #adb5bd;
-      font-size: .85rem;
+      padding: 20px 14px; text-align: center;
+      color: var(--text-muted); font-size: .85rem;
     }
 
-    /* ── Loading / Error states ───────────────────────────────────────────── */
-    .loading { text-align: center; padding: 60px; color: #6c757d; font-size: .95rem; }
+    .loading { text-align: center; padding: 60px; color: var(--text-muted); font-size: .95rem; }
     .error-msg {
-      background: #f8d7da;
-      color: #721c24;
-      border-radius: 8px;
-      padding: 14px 20px;
-      margin: 20px 24px;
-      font-size: .9rem;
+      background: #f8d7da; color: #721c24;
+      border-radius: var(--radius); padding: 14px 20px;
+      margin: 20px 24px; font-size: .9rem;
     }
 
-    @media (max-width: 900px) {
-      .week-grid { grid-template-columns: repeat(2, 1fr); }
+    .book-btn {
+      display: block; width: calc(100% - 20px); margin: 0 10px 10px;
+      padding: 7px; background: var(--primary); color: #fff;
+      border: none; border-radius: var(--radius); font-size: .8rem;
+      font-weight: 600; cursor: pointer; transition: background .15s;
     }
-    @media (max-width: 600px) {
-      .week-grid { grid-template-columns: 1fr; }
+    .book-btn:hover { background: var(--primary-hover); }
+    .book-btn:disabled { background: #aaa; cursor: not-allowed; }
+
+    /* Modal */
+    .modal-overlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,.45); z-index: 300; align-items: center; justify-content: center; }
+    .modal-overlay.open { display: flex; }
+    .modal-box { background: var(--surface); border-radius: var(--radius); width: 380px; max-width: 95vw; box-shadow: 0 8px 32px rgba(0,0,0,.2); }
+    .modal-header { display: flex; align-items: center; justify-content: space-between; padding: 1rem 1.25rem; border-bottom: 1px solid var(--border); }
+    .modal-header h3 { font-size: 1rem; font-weight: 600; margin: 0; }
+    .modal-body { padding: 1.25rem; display: flex; flex-direction: column; gap: .85rem; }
+    .modal-footer { display: flex; gap: .5rem; justify-content: flex-end; padding: 0 1.25rem 1.25rem; }
+    .time-row { display: grid; grid-template-columns: 1fr 1fr; gap: .75rem; }
+
+    @media (max-width: 900px) { .week-grid { grid-template-columns: repeat(2, 1fr); } }
+    @media (max-width: 600px) { .week-grid { grid-template-columns: 1fr; } }
+
+    /* ── Occupancy bar inside day header ─────────────────────────────────── */
+    .day-occ-wrap {
+      display: flex; align-items: center; gap: 6px; margin-top: 8px;
     }
+    .day-occ-track {
+      flex: 1; height: 5px; background: rgba(255,255,255,.25);
+      border-radius: 3px; overflow: hidden;
+    }
+    .day-occ-fill {
+      height: 100%; border-radius: 3px; transition: width .4s ease;
+    }
+    .occ-good .day-occ-fill { background: #4ade80; }
+    .occ-warn .day-occ-fill { background: #fbbf24; }
+    .occ-full .day-occ-fill { background: #f87171; }
+    .day-occ-label {
+      font-size: .7rem; font-weight: 700; white-space: nowrap;
+      opacity: .9; color: #fff;
+    }
+
+    /* ── Availability bar ─────────────────────────────────────────────────── */
+    #availability-bar {
+      display: grid;
+      grid-template-columns: repeat(5, 1fr);
+      gap: 12px;
+      padding: 0 24px 8px;
+    }
+    .avail-chip {
+      display: flex; flex-direction: column; align-items: center;
+      background: var(--surface); border: 1px solid var(--border);
+      border-radius: var(--radius); padding: 6px 14px;
+      font-size: .75rem; color: var(--text-muted); text-align: center;
+      cursor: pointer; transition: border-color .15s, box-shadow .15s;
+    }
+    .avail-chip:hover { border-color: var(--primary); box-shadow: 0 2px 6px rgba(0,0,0,.08); }
+    .avail-chip .avail-num { font-size: 1.3rem; font-weight: 700; line-height: 1.1; margin-top: 2px; }
+    .avail-chip.good  .avail-num { color: var(--success, #16a34a); }
+    .avail-chip.warn  .avail-num { color: #d97706; }
+    .avail-chip.full  .avail-num { color: var(--danger, #dc2626); }
+    .avail-chip.today-chip { border-color: var(--primary); background: #eff6ff; }
+    @media (max-width: 900px) { #availability-bar { grid-template-columns: repeat(2, 1fr); } }
+    @media (max-width: 600px) { #availability-bar { grid-template-columns: 1fr; } }
   </style>
 </head>
 <body>
 
-<header>
-  <h1>Desk Booking — Presenças</h1>
-  <nav>
-    <a href="/spot-booking.html">+ Reservar Vaga</a>
-    <a href="/rooms.html">Salas</a>
-    <a href="#" id="logout-btn">Sair</a>
-    <span id="user-badge">—</span>
-  </nav>
+<header class="header">
+  <div class="header-brand">WorkPlace<span class="header-brand-sub">Barra Funda · SP</span></div>
+  <div class="header-user">
+    <div class="header-nav"><a href="/week.html" style="color:var(--primary);font-weight:600">Presenças</a></div>
+    <div class="header-nav"><a href="/spot-booking.html">Reservar Vaga</a></div>
+    <div class="header-nav"><a href="/rooms.html">Salas</a></div>
+    <div class="header-nav" id="admin-link" style="display:none"><a href="/admin-users.html">Admin</a></div>
+    <span id="user-badge" style="font-size:.85rem;color:var(--text-muted)">—</span>
+    <a href="#" id="logout-btn" class="btn btn-ghost btn-sm">Sair</a>
+  </div>
 </header>
 
 <div class="week-nav">
@@ -184,8 +198,54 @@
   <button id="next-week">Próxima Semana &#8594;</button>
 </div>
 
+<div id="availability-bar" style="display:none"></div>
+
 <div id="root">
   <div class="loading">Carregando presenças...</div>
+</div>
+
+<!-- Booking modal -->
+<div class="modal-overlay" id="book-modal">
+  <div class="modal-box">
+    <div class="modal-header">
+      <h3 id="book-modal-title">Reservar vaga</h3>
+      <button class="btn btn-ghost btn-sm" onclick="closeBookModal()">✕</button>
+    </div>
+    <div class="modal-body">
+      <div id="book-avail-info" style="font-size:.85rem;color:var(--text-muted)"></div>
+      <div class="time-row">
+        <div class="form-group" style="margin:0">
+          <label>Entrada</label>
+          <select id="book-start">
+            <option>08:00</option><option>08:30</option><option>09:00</option>
+            <option>09:30</option><option>10:00</option><option>10:30</option>
+            <option>11:00</option><option>11:30</option><option>12:00</option>
+            <option>12:30</option><option>13:00</option><option>13:30</option>
+            <option>14:00</option><option>14:30</option><option>15:00</option>
+            <option>15:30</option><option>16:00</option><option>16:30</option>
+            <option>17:00</option><option>17:30</option>
+          </select>
+        </div>
+        <div class="form-group" style="margin:0">
+          <label>Saída</label>
+          <select id="book-end">
+            <option>08:30</option><option>09:00</option><option>09:30</option>
+            <option>10:00</option><option>10:30</option><option>11:00</option>
+            <option>11:30</option><option>12:00</option><option>12:30</option>
+            <option>13:00</option><option>13:30</option><option>14:00</option>
+            <option>14:30</option><option>15:00</option><option>15:30</option>
+            <option>16:00</option><option>16:30</option><option>17:00</option>
+            <option>17:30</option><option selected>18:00</option>
+          </select>
+        </div>
+      </div>
+      <div id="book-msg" style="font-size:.85rem"></div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-ghost" onclick="closeBookModal()">Cancelar</button>
+      <button class="btn btn-primary" id="btn-confirm-book">Confirmar Reserva</button>
+    </div>
+  </div>
 </div>
 
 <script>
@@ -193,19 +253,21 @@
   const MONTH_NAMES = ["Jan","Fev","Mar","Abr","Mai","Jun","Jul","Ago","Set","Out","Nov","Dez"];
 
   const token = localStorage.getItem("token");
-  if (!token) { location.href = "/login.html"; }
+  if (!token) { location.href = "/index.html"; }
 
   // Decodifica payload do JWT (sem verificar assinatura, apenas para exibição)
   function parseJwt(t) {
-    try { return JSON.parse(atob(t.split(".")[1])); } catch { return {}; }
+    try { const b=t.split(".")[1].replace(/-/g,"+").replace(/_/g,"/"); return JSON.parse(new TextDecoder().decode(Uint8Array.from(atob(b),c=>c.charCodeAt(0)))); } catch { return {}; }
   }
   const me = parseJwt(token);
   document.getElementById("user-badge").textContent = me.name || me.email || "Usuário";
+  if (me.is_admin) document.getElementById("admin-link").style.display = "";
 
   document.getElementById("logout-btn").addEventListener("click", (e) => {
     e.preventDefault();
     localStorage.removeItem("token");
-    location.href = "/login.html";
+    localStorage.removeItem("user");
+    location.href = "/index.html";
   });
 
   // ── Date helpers ──────────────────────────────────────────────────────────
@@ -229,20 +291,179 @@
   // ── State ─────────────────────────────────────────────────────────────────
   let currentMonday = getMonday(new Date());
 
+  // ── Booking modal ─────────────────────────────────────────────────────────
+  let bookingDate = null;
+
+  async function openBookModal(date) {
+    bookingDate = date;
+    const d = new Date(date + "T12:00:00");
+    document.getElementById("book-modal-title").textContent =
+      `Reservar — ${DAY_NAMES[["sun","mon","tue","wed","thu","fri","sat"].indexOf(["sun","mon","tue","wed","thu","fri","sat"][d.getDay()])]} ${d.getDate()} ${MONTH_NAMES[d.getMonth()]}`;
+    document.getElementById("book-msg").textContent = "";
+    document.getElementById("book-avail-info").textContent = "Verificando disponibilidade...";
+    document.getElementById("btn-confirm-book").disabled = false;
+    document.getElementById("book-modal").classList.add("open");
+
+    try {
+      const res = await fetch(`/api/spots/availability?date=${date}`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      const av = await res.json();
+      if (av.available <= 0) {
+        document.getElementById("book-avail-info").textContent = "Sem vagas disponíveis neste dia.";
+        document.getElementById("btn-confirm-book").disabled = true;
+      } else {
+        document.getElementById("book-avail-info").textContent =
+          `${av.available} vaga${av.available !== 1 ? "s" : ""} disponível${av.available !== 1 ? "is" : ""} neste dia.`;
+      }
+    } catch {
+      document.getElementById("book-avail-info").textContent = "";
+    }
+  }
+
+  function closeBookModal() {
+    document.getElementById("book-modal").classList.remove("open");
+    bookingDate = null;
+  }
+
+  document.getElementById("btn-confirm-book").addEventListener("click", async () => {
+    if (!bookingDate) return;
+    const start = document.getElementById("book-start").value;
+    const end   = document.getElementById("book-end").value;
+    const msg   = document.getElementById("book-msg");
+    const btn   = document.getElementById("btn-confirm-book");
+
+    if (end <= start) {
+      msg.style.color = "var(--danger)"; msg.textContent = "Horário de saída deve ser após a entrada."; return;
+    }
+
+    btn.disabled = true;
+    msg.style.color = "var(--text-muted)"; msg.textContent = "Reservando...";
+
+    try {
+      const res = await fetch("/api/spots/bookings", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ dates: [bookingDate], start_time: start, end_time: end }),
+      });
+      const data = await res.json();
+      const hasError = data.errors && data.errors.length > 0;
+      const hasCreated = data.created && data.created.length > 0;
+
+      if (hasCreated && !hasError) {
+        msg.style.color = "var(--success, #16a34a)";
+        msg.textContent = "Vaga reservada com sucesso!";
+        setTimeout(() => {
+          closeBookModal();
+          loadWeek(currentMonday);
+          loadAvailabilityBar(currentMonday);
+        }, 900);
+      } else {
+        msg.style.color = "var(--danger)";
+        msg.textContent = (data.errors && data.errors[0]?.error) || data.error || "Erro ao reservar.";
+        btn.disabled = false;
+      }
+    } catch(e) {
+      msg.style.color = "var(--danger)"; msg.textContent = "Erro de comunicação.";
+      btn.disabled = false;
+    }
+  });
+
+  async function cancelMySpot(bookingId, date) {
+    if (!confirm(`Cancelar sua reserva de vaga para ${date}?`)) return;
+    try {
+      const res = await fetch(`/api/spots/bookings/${bookingId}`, {
+        method: "DELETE",
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      if (!res.ok) { const d = await res.json(); alert(d.error || "Erro ao cancelar."); return; }
+      loadWeek(currentMonday);
+      loadAvailabilityBar(currentMonday);
+    } catch { alert("Erro de comunicação."); }
+  }
+
+  // ── Availability bar ──────────────────────────────────────────────────────
+  async function loadAvailabilityBar(monday) {
+    const bar = document.getElementById("availability-bar");
+    const todayISO = toISO(new Date());
+    bar.innerHTML = "";
+    bar.style.display = "none";
+
+    const days = Array.from({ length: 5 }, (_, i) => {
+      const d = new Date(monday);
+      d.setDate(monday.getDate() + i);
+      return toISO(d);
+    });
+
+    const results = await Promise.allSettled(
+      days.map(date =>
+        fetch(`/api/spots/availability?date=${date}`, {
+          headers: { Authorization: `Bearer ${token}` },
+        }).then(r => r.ok ? r.json() : null)
+      )
+    );
+
+    let anyData = false;
+    results.forEach((r, i) => {
+      const data = r.status === "fulfilled" ? r.value : null;
+      if (!data) return;
+      anyData = true;
+      const date = days[i];
+      const isToday = date === todayISO;
+      const pct = data.total_spots > 0 ? data.available / data.total_spots : 1;
+      const cls = data.available === 0 ? "full" : pct <= 0.3 ? "warn" : "good";
+      const chip = document.createElement("button");
+      chip.onclick = () => openBookModal(date);
+      chip.className = `avail-chip ${cls}${isToday ? " today-chip" : ""}`;
+      chip.innerHTML = `
+        <span>${DAY_NAMES[i]}</span>
+        <span class="avail-num">${data.available}</span>
+        <span>vaga${data.available !== 1 ? "s" : ""} livre${data.available !== 1 ? "s" : ""}</span>
+      `;
+      bar.appendChild(chip);
+    });
+
+    if (anyData) bar.style.display = "grid";
+  }
+
   // ── Fetch & render ─────────────────────────────────────────────────────────
+  let myBookedDates = {}; // date -> { id, start_time }
+
+  async function loadMyBookings(start, end) {
+    try {
+      const res = await fetch(`/api/spots/my-bookings?start=${start}&end=${end}`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      if (!res.ok) return;
+      const list = await res.json();
+      myBookedDates = {};
+      list.forEach(b => { myBookedDates[b.date] = { id: b.id, start_time: b.start_time }; });
+    } catch { myBookedDates = {}; }
+  }
+
   async function loadWeek(monday) {
     const start = toISO(monday);
+    const end = toISO(new Date(monday.getTime() + 4 * 24 * 60 * 60 * 1000));
     document.getElementById("week-label").textContent = formatWeekLabel(start);
     document.getElementById("root").innerHTML = '<div class="loading">Carregando...</div>';
 
-    let data;
+    await loadMyBookings(start, end);
+
+    // Fetch week data + availability for all 5 days in parallel
+    const days5 = Array.from({ length: 5 }, (_, i) => {
+      const d = new Date(monday); d.setDate(monday.getDate() + i); return toISO(d);
+    });
+
+    let data, availMap = {};
     try {
-      const res = await fetch(`/api/spots/week?start=${start}`, {
-        headers: { Authorization: `Bearer ${token}` },
-      });
-      if (res.status === 401) { localStorage.removeItem("token"); location.href = "/login.html"; return; }
-      if (!res.ok) throw new Error(`Erro ${res.status}`);
-      data = await res.json();
+      const [weekRes, ...availResults] = await Promise.all([
+        fetch(`/api/spots/week?start=${start}`, { headers: { Authorization: `Bearer ${token}` } }),
+        ...days5.map(date => fetch(`/api/spots/availability?date=${date}`, { headers: { Authorization: `Bearer ${token}` } }).then(r => r.ok ? r.json() : null).catch(() => null))
+      ]);
+      if (weekRes.status === 401) { localStorage.removeItem("token"); location.href = "/index.html"; return; }
+      if (!weekRes.ok) throw new Error(`Erro ${weekRes.status}`);
+      data = await weekRes.json();
+      days5.forEach((date, i) => { if (availResults[i]) availMap[date] = availResults[i]; });
     } catch (err) {
       document.getElementById("root").innerHTML =
         `<div class="error-msg">Não foi possível carregar as presenças: ${err.message}</div>`;
@@ -253,37 +474,78 @@
 
     const cols = data.days.map((date, i) => {
       const d = new Date(date + "T12:00:00");
-      const people = data.week[date] || [];
+      // Logged-in user pinned to top; rest keeps server-side alpha order
+      const people = (data.week[date] || []).slice().sort((a, b) => {
+        if (a.email === me.email) return -1;
+        if (b.email === me.email) return 1;
+        return 0;
+      });
       const isToday = date === todayISO;
+      const avail = availMap[date];
+
+      // Occupancy bar
+      let occBar = "";
+      if (avail) {
+        const total = avail.total_spots || 0;
+        const booked = total - (avail.available ?? total);
+        const pct = total > 0 ? Math.round((booked / total) * 100) : 0;
+        const occCls = pct >= 100 ? "occ-full" : pct >= 70 ? "occ-warn" : "occ-good";
+        occBar = `
+          <div class="day-occ-wrap ${occCls}">
+            <div class="day-occ-track"><div class="day-occ-fill" style="width:${Math.min(pct,100)}%"></div></div>
+            <span class="day-occ-label">${booked}/${total}</span>
+          </div>`;
+      }
 
       const cards = people.length
         ? people.map(p => {
             const comp = (p.company || "").toLowerCase();
             const badgeClass = comp.includes("tenda") ? "badge-tenda"
-                              : comp.includes("voxcred") || comp.includes("cartão") ? "badge-voxcred"
+                              : comp.includes("vox") || comp.includes("cartão") ? "badge-voxcred"
                               : "badge-unknown";
             const badgeLabel = comp.includes("tenda") ? "Tenda Atacado"
-                              : comp.includes("voxcred") || comp.includes("cartão") ? "Voxcred"
+                              : comp.includes("vox") || comp.includes("cartão") ? "Vox"
                               : (p.company || "—");
+            const timeOrDesk = (p.auto_presence || p.is_desk_owner)
+                ? `<span class="person-auto-badge">🪑 Mesa Fixa</span>`
+                : `<span class="person-time">${p.start_time} – ${p.end_time}</span>`;
             return `
-              <div class="person-card">
+              <div class="person-card${p.auto_presence ? ' person-card-auto' : ''}${p.email === me.email ? ' person-card-me' : ''}">
                 <div class="person-name">${esc(p.name)}</div>
                 <div class="person-email">${esc(p.email)}</div>
                 <div class="person-meta">
                   <span class="company-badge ${badgeClass}">${esc(badgeLabel)}</span>
-                  <span class="person-time">${p.start_time} – ${p.end_time}</span>
+                  ${timeOrDesk}
                 </div>
               </div>`;
           }).join("")
         : `<div class="empty-col">Ninguém ainda</div>`;
 
+      const isPast = date < todayISO;
+      const myBooking = myBookedDates[date];
+      let bookBtn = "";
+      if (!isPast) {
+        if (myBooking) {
+          const diffHours = (new Date(`${date}T${myBooking.start_time}:00`) - new Date()) / (1000 * 60 * 60);
+          const within24h = diffHours < 24;
+          if (within24h) {
+            bookBtn = `<button class="book-btn" disabled title="Cancelamento exige mínimo 24h de antecedência" style="background:#16a34a;opacity:.65;cursor:not-allowed">&#10003; Vaga reservada (+24h p/ cancelar)</button>`;
+          } else {
+            bookBtn = `<button class="book-btn" style="background:#16a34a" onclick="cancelMySpot(${myBooking.id},'${date}')">&#10003; Vaga reservada — Cancelar</button>`;
+          }
+        } else {
+          bookBtn = `<button class="book-btn" onclick="openBookModal('${date}')">+ Reservar vaga</button>`;
+        }
+      }
       return `
         <div class="day-col">
           <div class="day-header${isToday ? " today-col" : ""}" data-date="${date}">
             <div class="day-name">${DAY_NAMES[i]}</div>
             <div class="day-date">${d.getDate()} ${MONTH_NAMES[d.getMonth()]}</div>
             <div class="day-count">${people.length} ${people.length === 1 ? "pessoa" : "pessoas"}</div>
+            ${occBar}
           </div>
+          ${bookBtn}
           <div class="people-list">${cards}</div>
         </div>`;
     });
@@ -300,16 +562,19 @@
   document.getElementById("prev-week").addEventListener("click", () => {
     currentMonday.setDate(currentMonday.getDate() - 7);
     loadWeek(currentMonday);
+    loadAvailabilityBar(currentMonday);
   });
 
   document.getElementById("next-week").addEventListener("click", () => {
     currentMonday.setDate(currentMonday.getDate() + 7);
     loadWeek(currentMonday);
+    loadAvailabilityBar(currentMonday);
   });
 
   document.getElementById("today-btn").addEventListener("click", () => {
     currentMonday = getMonday(new Date());
     loadWeek(currentMonday);
+    loadAvailabilityBar(currentMonday);
   });
 
   // SSO token on first load
@@ -322,6 +587,7 @@
   }
 
   loadWeek(currentMonday);
+  loadAvailabilityBar(currentMonday);
 </script>
 
 </body>

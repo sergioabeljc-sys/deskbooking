@@ -1,0 +1,383 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Admin — Usuários — WorkPlace</title>
+  <link rel="stylesheet" href="/css/style.css" />
+  <link rel="icon" type="image/svg+xml" href="/img/favicon.svg" />
+  <style>
+    .page-content { max-width: 960px; margin: 1.5rem auto; padding: 0 1rem 3rem; }
+    .admin-tabs { display: flex; gap: .25rem; padding: 0 1rem; border-bottom: 1px solid var(--border); background: var(--surface); }
+    .admin-tab { padding: .75rem 1.25rem; font-size: .875rem; font-weight: 500; color: var(--text-muted); cursor: pointer; border-bottom: 2px solid transparent; margin-bottom: -1px; text-decoration: none; }
+    .admin-tab:hover { color: var(--text); }
+    .admin-tab.active { color: var(--primary); border-bottom-color: var(--primary); }
+
+    /* Search */
+    .search-row { display: flex; gap: .5rem; margin-bottom: 1rem; align-items: center; }
+    .search-row input { flex: 1; }
+
+    /* Table */
+    .user-table { width: 100%; border-collapse: collapse; font-size: .875rem; }
+    .user-table th { text-align: left; padding: .5rem .75rem; font-size: .75rem; font-weight: 600; color: var(--text-muted); text-transform: uppercase; letter-spacing: .4px; border-bottom: 2px solid var(--border); }
+    .user-table td { padding: .6rem .75rem; border-bottom: 1px solid var(--border); vertical-align: middle; }
+    .user-table tr:last-child td { border-bottom: none; }
+    .user-table tr:hover td { background: #f8fafc; }
+
+    .badge-admin    { background: #fee2e2; color: #b91c1c; font-size: .7rem; font-weight: 700; padding: 2px 6px; border-radius: 10px; }
+    .badge-ti       { background: #dbeafe; color: #1d4ed8; font-size: .7rem; font-weight: 700; padding: 2px 6px; border-radius: 10px; }
+    .badge-ok       { background: #dcfce7; color: #15803d; font-size: .7rem; font-weight: 700; padding: 2px 6px; border-radius: 10px; }
+    .badge-inactive { background: #fef3c7; color: #92400e; font-size: .7rem; font-weight: 700; padding: 2px 6px; border-radius: 10px; }
+
+    .action-cell { display: flex; gap: .4rem; align-items: center; }
+
+    /* Modal */
+    .modal-overlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,.45); z-index: 300; align-items: center; justify-content: center; }
+    .modal-overlay.open { display: flex; }
+    .modal-box { background: var(--surface); border-radius: var(--radius); width: 480px; max-width: 95vw; box-shadow: 0 8px 32px rgba(0,0,0,.2); }
+    .modal-header { display: flex; align-items: center; justify-content: space-between; padding: 1rem 1.25rem; border-bottom: 1px solid var(--border); }
+    .modal-header h3 { font-size: 1rem; font-weight: 600; margin: 0; }
+    .modal-body { padding: 1.25rem; display: flex; flex-direction: column; gap: .85rem; }
+    .modal-footer { display: flex; gap: .5rem; justify-content: flex-end; padding: 0 1.25rem 1.25rem; }
+    .field-row { display: grid; grid-template-columns: 1fr 1fr; gap: .75rem; }
+  </style>
+</head>
+<body>
+
+<header class="header">
+  <div class="header-brand">WorkPlace — Admin<span class="header-brand-sub">Barra Funda · SP</span></div>
+  <div class="header-user">
+    <div class="header-nav"><a href="/week.html">Presenças</a></div>
+    <div class="header-nav"><a href="/spot-booking.html">Reservar Vaga</a></div>
+    <div class="header-nav"><a href="/rooms.html">Salas</a></div>
+    <div class="header-nav"><a href="/admin-rooms.html" style="color:var(--primary);font-weight:600">Admin</a></div>
+    <span id="user-name" style="font-size:.85rem;color:var(--text-muted)"></span>
+    <button class="btn btn-ghost btn-sm" onclick="logout()">Sair</button>
+  </div>
+</header>
+
+<nav class="admin-tabs">
+  <a class="admin-tab active" href="/admin-users.html">Usuários</a>
+  <a class="admin-tab" href="/admin-rooms.html">Salas</a>
+  <a class="admin-tab" href="/admin-capacity.html">Vagas &amp; Departamentos</a>
+  <a class="admin-tab" href="/admin-desks.html">Mesas</a>
+  <a class="admin-tab" href="/admin-bookings.html">Reservas</a>
+  <a class="admin-tab" href="/admin-audit.html">Auditoria</a>
+</nav>
+
+<div class="page-content">
+  <div class="card">
+    <div class="card-header">
+      Usuários Cadastrados
+      <button class="btn btn-primary btn-sm" onclick="openNew()">+ Novo Usuário</button>
+    </div>
+    <div class="card-body" style="padding:1.25rem">
+
+      <div class="search-row">
+        <input type="text" id="search" placeholder="Buscar por nome, e-mail, empresa ou departamento..." oninput="filterUsers()" />
+      </div>
+
+      <div id="users-container">
+        <p style="color:var(--text-muted)">Carregando...</p>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Edit / New modal -->
+<div class="modal-overlay" id="modal">
+  <div class="modal-box">
+    <div class="modal-header">
+      <h3 id="modal-title">Editar Usuário</h3>
+      <button class="btn btn-ghost btn-sm" onclick="closeModal()">✕</button>
+    </div>
+    <div class="modal-body">
+      <input type="hidden" id="edit-id" />
+
+      <div class="field-row">
+        <div class="form-group" style="margin:0">
+          <label>Nome</label>
+          <input type="text" id="edit-name" placeholder="Nome completo" />
+        </div>
+        <div class="form-group" style="margin:0">
+          <label>E-mail</label>
+          <input type="email" id="edit-email" placeholder="email@empresa.com" />
+        </div>
+      </div>
+
+      <div class="field-row">
+        <div class="form-group" style="margin:0">
+          <label>Empresa</label>
+          <select id="edit-company">
+            <option value="">— Selecione —</option>
+            <option value="Tenda">Tenda</option>
+            <option value="Vox">Vox</option>
+          </select>
+        </div>
+        <div class="form-group" style="margin:0">
+          <label>Departamento</label>
+          <select id="edit-department">
+            <option value="">— Sem departamento —</option>
+          </select>
+        </div>
+      </div>
+
+      <div class="field-row" id="password-row">
+        <div class="form-group" style="margin:0">
+          <label>Senha <span style="color:var(--text-muted);font-size:.8rem">(novo usuário)</span></label>
+          <input type="password" id="edit-password" placeholder="Mínimo 8 caracteres" />
+        </div>
+      </div>
+
+      <div class="form-group" style="margin:0">
+        <label>Dias por semana que pode reservar mesa <span style="color:var(--text-muted);font-size:.8rem">(1–5)</span></label>
+        <input type="number" id="edit-days" min="1" max="5" value="3" style="width:80px" />
+      </div>
+
+      <div id="modal-msg" style="font-size:.85rem"></div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-ghost" onclick="closeModal()">Cancelar</button>
+      <button class="btn btn-primary" id="btn-save">Salvar</button>
+    </div>
+  </div>
+</div>
+
+<script src="/js/api.js"></script>
+<script>
+  // ── Auth ──────────────────────────────────────────────────────────────────
+  const _tok = localStorage.getItem("token");
+  if (!_tok) { location.href = "/index.html"; }
+  function parseJwt(t) { try { const b=t.split(".")[1].replace(/-/g,"+").replace(/_/g,"/"); return JSON.parse(new TextDecoder().decode(Uint8Array.from(atob(b),c=>c.charCodeAt(0)))); } catch { return {}; } }
+  const me = parseJwt(_tok);
+  if (!me.is_admin) { alert("Acesso restrito a administradores."); location.href = "/week.html"; }
+  document.getElementById("user-name").textContent = me.name || me.email || "";
+  function logout() { API.clearSession(); location.href = "/index.html"; }
+
+  function esc(s) { return String(s || "").replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;"); }
+
+  // ── State ─────────────────────────────────────────────────────────────────
+  let allUsers = [];
+  let allDepts = [];
+
+  // ── Load departments into select ──────────────────────────────────────────
+  async function loadDepts() {
+    try {
+      allDepts = await API.fetch("/admin/departments");
+      const sel = document.getElementById("edit-department");
+      // Keep the blank option, rebuild the rest
+      sel.innerHTML = '<option value="">— Sem departamento —</option>';
+      allDepts.forEach(d => {
+        const opt = document.createElement("option");
+        opt.value = d.name;
+        opt.textContent = d.name + (d.can_book_spot ? "" : " (sem acesso a vagas)");
+        sel.appendChild(opt);
+      });
+    } catch(e) { /* silently ignore — text fallback remains */ }
+  }
+
+  // ── Load ──────────────────────────────────────────────────────────────────
+  async function loadUsers() {
+    try {
+      allUsers = await API.fetch("/users");
+      renderUsers(allUsers);
+    } catch(e) {
+      document.getElementById("users-container").innerHTML =
+        `<p style="color:var(--danger)">${e.message}</p>`;
+    }
+  }
+
+  function filterUsers() {
+    const q = document.getElementById("search").value.toLowerCase();
+    if (!q) { renderUsers(allUsers); return; }
+    renderUsers(allUsers.filter(u =>
+      (u.name||"").toLowerCase().includes(q) ||
+      (u.email||"").toLowerCase().includes(q) ||
+      (u.company||"").toLowerCase().includes(q) ||
+      (u.department||"").toLowerCase().includes(q)
+    ));
+  }
+
+  function renderUsers(list) {
+    const el = document.getElementById("users-container");
+    if (!list.length) { el.innerHTML = '<p style="color:var(--text-muted)">Nenhum usuário encontrado.</p>'; return; }
+
+    el.innerHTML = `
+      <table class="user-table">
+        <thead>
+          <tr>
+            <th>Nome</th>
+            <th>E-mail</th>
+            <th>Empresa</th>
+            <th>Departamento</th>
+            <th>Dias/sem.</th>
+            <th>Flags</th>
+            <th>Ações</th>
+          </tr>
+        </thead>
+        <tbody>
+          ${list.map(u => {
+            const isInactive = u.status === "inactive";
+            const rowStyle = isInactive ? ' style="opacity:.55"' : '';
+            const statusBadge = isInactive
+              ? '<span class="badge-inactive">Inativo</span> '
+              : (u.is_admin ? '' : (u.is_ti ? '' : '<span class="badge-ok">Ativo</span>'));
+            const toggleBtn = u.id !== me.id
+              ? `<button class="btn btn-ghost btn-sm" onclick="toggleStatus(${u.id},'${esc(u.name)}',${isInactive})"
+                   style="color:${isInactive ? 'var(--success)' : 'var(--text-muted)'}">
+                   ${isInactive ? 'Ativar' : 'Inativar'}
+                 </button>`
+              : '';
+            return `
+            <tr${rowStyle}>
+              <td style="font-weight:600">${esc(u.name)}</td>
+              <td style="color:var(--text-muted);font-size:.82rem">${esc(u.email)}</td>
+              <td>${esc(u.company || "—")}</td>
+              <td>${esc(u.department || "—")}</td>
+              <td style="text-align:center">${u.weekly_office_days}</td>
+              <td>
+                ${statusBadge}
+                ${u.is_admin ? '<span class="badge-admin">Admin</span> ' : ''}
+                ${u.is_ti   ? '<span class="badge-ti">TI</span> ' : ''}
+              </td>
+              <td>
+                <div class="action-cell">
+                  <button class="btn btn-ghost btn-sm" onclick="openEdit(${u.id})">Editar</button>
+                  ${toggleBtn}
+                  ${u.id !== me.id ? '<button class="btn btn-danger btn-sm" onclick="deleteUser(' + u.id + ',\'' + esc(u.name) + '\')">Remover</button>' : ''}
+                </div>
+              </td>
+            </tr>
+          `}).join("")}
+        </tbody>
+      </table>
+    `;
+  }
+
+  // ── Modal helpers ─────────────────────────────────────────────────────────
+  let isNew = false;
+
+  function openNew() {
+    isNew = true;
+    document.getElementById("modal-title").textContent = "Novo Usuário";
+    document.getElementById("edit-id").value = "";
+    document.getElementById("edit-name").value = "";
+    document.getElementById("edit-email").value = "";
+    document.getElementById("edit-email").disabled = false;
+    document.getElementById("edit-company").value = "";
+    document.getElementById("edit-department").value = "";
+    document.getElementById("edit-password").value = "";
+    document.getElementById("edit-days").value = "3";
+    document.getElementById("password-row").style.display = "";
+    document.getElementById("modal-msg").textContent = "";
+    document.getElementById("modal").classList.add("open");
+  }
+
+  function openEdit(id) {
+    const u = allUsers.find(x => x.id === id);
+    if (!u) return;
+    isNew = false;
+    document.getElementById("modal-title").textContent = "Editar Usuário";
+    document.getElementById("edit-id").value = u.id;
+    document.getElementById("edit-name").value = u.name || "";
+    document.getElementById("edit-email").value = u.email || "";
+    document.getElementById("edit-email").disabled = true;
+    document.getElementById("edit-company").value = u.company || "";
+    document.getElementById("edit-department").value = u.department || "";
+    document.getElementById("edit-password").value = "";
+    document.getElementById("edit-days").value = u.weekly_office_days || 3;
+    document.getElementById("password-row").style.display = "none";
+    document.getElementById("modal-msg").textContent = "";
+    document.getElementById("modal").classList.add("open");
+  }
+
+  function closeModal() {
+    document.getElementById("modal").classList.remove("open");
+  }
+
+  // ── Save ──────────────────────────────────────────────────────────────────
+  document.getElementById("btn-save").addEventListener("click", async () => {
+    const msg = document.getElementById("modal-msg");
+    const id  = document.getElementById("edit-id").value;
+    const name       = document.getElementById("edit-name").value.trim();
+    const email      = document.getElementById("edit-email").value.trim();
+    const company    = document.getElementById("edit-company").value.trim();
+    const department = document.getElementById("edit-department").value.trim();
+    const password   = document.getElementById("edit-password").value;
+    const days       = parseInt(document.getElementById("edit-days").value, 10);
+
+    msg.style.color = "var(--danger)";
+    if (!name) { msg.textContent = "Nome é obrigatório."; return; }
+
+    try {
+      if (isNew) {
+        if (!email) { msg.textContent = "E-mail é obrigatório."; return; }
+        if (!password) { msg.textContent = "Senha é obrigatória."; return; }
+        const u = await API.fetch("/users", {
+          method: "POST",
+          body: JSON.stringify({ name, email, password }),
+        });
+        // Update company/dept right after
+        if (company || department) {
+          await API.fetch(`/users/${u.id}`, {
+            method: "PUT",
+            body: JSON.stringify({ name, company, department }),
+          });
+        }
+        // Update weekly days if not default
+        if (days && days !== 3) {
+          await API.fetch(`/users/${u.id}/weekly-days`, {
+            method: "PUT",
+            body: JSON.stringify({ days }),
+          });
+        }
+      } else {
+        await API.fetch(`/users/${id}`, {
+          method: "PUT",
+          body: JSON.stringify({ name, company, department }),
+        });
+        if (days >= 1 && days <= 5) {
+          await API.fetch(`/users/${id}/weekly-days`, {
+            method: "PUT",
+            body: JSON.stringify({ days }),
+          });
+        }
+      }
+      msg.style.color = "var(--success)";
+      msg.textContent = isNew ? "Usuário criado!" : "Salvo!";
+      loadUsers();
+      setTimeout(closeModal, 800);
+    } catch(e) {
+      msg.textContent = e.message || "Erro ao salvar.";
+    }
+  });
+
+  // ── Toggle status ─────────────────────────────────────────────────────────
+  async function toggleStatus(id, name, currentlyInactive) {
+    const action = currentlyInactive ? "ativar" : "inativar";
+    if (!confirm(`${currentlyInactive ? "Ativar" : "Inativar"} o usuário "${name}"?`)) return;
+    try {
+      await API.fetch(`/users/${id}/toggle-status`, { method: "PUT" });
+      loadUsers();
+    } catch(e) {
+      alert(e.message || `Erro ao ${action} usuário.`);
+    }
+  }
+
+  // ── Delete ────────────────────────────────────────────────────────────────
+  async function deleteUser(id, name) {
+    if (!confirm(`Remover o usuário "${name}"? Esta ação não pode ser desfeita.`)) return;
+    try {
+      await API.fetch(`/users/${id}`, { method: "DELETE" });
+      loadUsers();
+    } catch(e) {
+      alert(e.message || "Erro ao remover.");
+    }
+  }
+
+  // ── Init ──────────────────────────────────────────────────────────────────
+  loadDepts();
+  loadUsers();
+</script>
+</body>
+</html>

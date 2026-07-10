@@ -414,6 +414,65 @@ async function submitProfile() {
   }
 }
 
+// ─── Minha Mesa (dono) ────────────────────────────────────────────────────────
+const DAY_LABELS = { mon: "Seg", tue: "Ter", wed: "Qua", thu: "Qui", fri: "Sex" };
+const ALL_DAYS = ["mon", "tue", "wed", "thu", "fri"];
+
+async function loadMyDesk() {
+  const me = API.getUser();
+  if (!me) return;
+  try {
+    const desks = await API.get("/desks");
+    const myDesk = desks.find((d) => d.owner_id === me.id);
+    if (!myDesk) return;
+
+    const card = document.getElementById("my-desk-card");
+    const body = document.getElementById("my-desk-body");
+    card.style.display = "";
+
+    if (myDesk.type === "fixed") {
+      body.innerHTML = `
+        <p style="font-size:.875rem;font-weight:600;margin-bottom:.25rem">${escapeHtml(myDesk.name)}</p>
+        <p style="font-size:.8rem;color:var(--text-muted)">Mesa exclusiva — reservada para você todos os dias.</p>`;
+      return;
+    }
+
+    // type = 'rotative' com dono — pode configurar dias
+    const rotDays = (() => { try { return JSON.parse(myDesk.rotative_days || "[]"); } catch { return []; } })();
+
+    body.innerHTML = `
+      <p style="font-size:.875rem;font-weight:600;margin-bottom:.5rem">${escapeHtml(myDesk.name)}</p>
+      <p style="font-size:.78rem;color:var(--text-muted);margin-bottom:.6rem">Marque os dias em que sua mesa entra no pool de vagas rotativas.</p>
+      <div style="display:flex;flex-direction:column;gap:.35rem" id="my-desk-days">
+        ${ALL_DAYS.map((d) => `
+          <label style="display:flex;align-items:center;gap:.5rem;font-size:.875rem;cursor:pointer">
+            <input type="checkbox" value="${d}" ${rotDays.includes(d) ? "checked" : ""}
+              style="width:15px;height:15px;cursor:pointer">
+            ${DAY_LABELS[d]}
+            ${rotDays.includes(d)
+              ? '<span style="font-size:.75rem;color:var(--text-muted);margin-left:auto">no pool</span>'
+              : '<span style="font-size:.75rem;color:var(--text-muted);margin-left:auto">sua mesa</span>'}
+          </label>`).join("")}
+      </div>
+      <button class="btn btn-primary btn-sm" style="margin-top:.75rem;width:100%" onclick="saveMyDeskDays(${myDesk.id})">Salvar dias</button>
+    `;
+  } catch {}
+}
+
+async function saveMyDeskDays(deskId) {
+  const days = [...document.querySelectorAll("#my-desk-days input[type=checkbox]")]
+    .filter((c) => c.checked)
+    .map((c) => c.value);
+  try {
+    await API.put(`/desks/${deskId}/rotative-days`, { rotative_days: days });
+    showToast("Dias atualizados!");
+    loadMyDesk();
+  } catch (err) {
+    showToast(err.message, "error");
+  }
+}
+
 // ─── Init ─────────────────────────────────────────────────────────────────────
 loadDesks();
 loadMyBookings();
+loadMyDesk();

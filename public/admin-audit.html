@@ -1,0 +1,207 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Admin — Auditoria — WorkPlace</title>
+  <link rel="stylesheet" href="/css/style.css" />
+  <link rel="icon" type="image/svg+xml" href="/img/favicon.svg" />
+  <style>
+    .page-content { max-width: 960px; margin: 1.5rem auto; padding: 0 1rem 3rem; }
+    .admin-tabs { display: flex; gap: .25rem; padding: 0 1rem; border-bottom: 1px solid var(--border); background: var(--surface); flex-wrap: wrap; }
+    .admin-tab { padding: .75rem 1.25rem; font-size: .875rem; font-weight: 500; color: var(--text-muted); cursor: pointer; border-bottom: 2px solid transparent; margin-bottom: -1px; text-decoration: none; }
+    .admin-tab:hover { color: var(--text); }
+    .admin-tab.active { color: var(--primary); border-bottom-color: var(--primary); }
+    .table-wrap { overflow-x: auto; }
+    table { width: 100%; border-collapse: collapse; font-size: .875rem; }
+    th { text-align: left; padding: .5rem .75rem; font-size: .75rem; font-weight: 600; color: var(--text-muted); text-transform: uppercase; letter-spacing: .4px; border-bottom: 2px solid var(--border); }
+    td { padding: .6rem .75rem; border-bottom: 1px solid var(--border); vertical-align: middle; }
+    tr:last-child td { border-bottom: none; }
+    tr:hover td { background: #f8fafc; }
+  </style>
+</head>
+<body>
+
+<header class="header">
+  <div class="header-brand">WorkPlace — Admin<span class="header-brand-sub">Barra Funda · SP</span></div>
+  <div class="header-user">
+    <div class="header-nav"><a href="/week.html">Presenças</a></div>
+    <div class="header-nav"><a href="/spot-booking.html">Reservar Vaga</a></div>
+    <div class="header-nav"><a href="/rooms.html">Salas</a></div>
+    <div class="header-nav"><a href="/admin-users.html" style="color:var(--primary);font-weight:600">Admin</a></div>
+    <span id="user-name" style="font-size:.85rem;color:var(--text-muted)"></span>
+    <button class="btn btn-ghost btn-sm" onclick="logout()">Sair</button>
+  </div>
+</header>
+
+<nav class="admin-tabs">
+  <a class="admin-tab" href="/admin-users.html">Usuários</a>
+  <a class="admin-tab" href="/admin-rooms.html">Salas</a>
+  <a class="admin-tab" href="/admin-capacity.html">Vagas &amp; Departamentos</a>
+  <a class="admin-tab" href="/admin-desks.html">Mesas</a>
+  <a class="admin-tab" href="/admin-bookings.html">Reservas</a>
+  <a class="admin-tab active" href="/admin-audit.html">Auditoria</a>
+</nav>
+
+<div class="page-content">
+  <div class="card">
+    <div class="card-header">
+      Log de Ações
+      <span style="font-size:.8rem;font-weight:400;color:var(--text-muted)">Ações administrativas registradas</span>
+    </div>
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr>
+            <th>Data/Hora</th>
+            <th>Usuário</th>
+            <th>Ação</th>
+            <th>Detalhes</th>
+          </tr>
+        </thead>
+        <tbody id="audit-body">
+          <tr><td colspan="4" class="empty-state">Carregando...</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <div id="audit-pagination" style="padding:.75rem 1.25rem;border-top:1px solid var(--border);display:flex;gap:.5rem;align-items:center;flex-wrap:wrap"></div>
+  </div>
+</div>
+
+<script src="/js/api.js"></script>
+<script>
+  const user = requireAuth(true);
+  if (user) document.getElementById("user-name").textContent = user.name;
+
+  const TI_LOCATIONS = { sp: "SP (escritório)", home: "Home office", itaqua: "Itaquaquecetuba" };
+  const DOW_PT = { sun: "Dom", mon: "Seg", tue: "Ter", wed: "Qua", thu: "Qui", fri: "Sex", sat: "Sáb" };
+
+  function renderAuditDetails(action, d) {
+    if (!d) return "—";
+    const e = escapeHtml;
+    const fd = (s) => s ? formatDate(s) : "";
+    const ft = (s) => s ? s.slice(0, 5) : "";
+    const parts = (...xs) => xs.filter(Boolean).join(" · ") || "—";
+
+    switch (action) {
+      case "cancel_booking":
+      case "create_booking_admin":
+        return parts(d.desk && e(d.desk), d.date && fd(d.date), d.user && e(d.user));
+
+      case "create_room_booking":
+        return parts(d.room_name && e(d.room_name), d.date && fd(d.date),
+          d.start_time && `${ft(d.start_time)}–${ft(d.end_time)}`);
+      case "cancel_room_booking":
+        return parts(d.room_name && e(d.room_name), d.date && fd(d.date),
+          d.start_time && `${ft(d.start_time)}–${ft(d.end_time)}`);
+
+      case "create_spot_booking":
+      case "cancel_spot_booking":
+        return parts(d.date && fd(d.date),
+          d.start_time && `${ft(d.start_time)}–${ft(d.end_time)}`);
+
+      case "create_user":
+      case "delete_user":
+        return parts(d.name && e(d.name), d.email && `&lt;${e(d.email)}&gt;`);
+      case "edit_user":
+        return parts(d.name && e(d.name), d.company && e(d.company), d.department && e(d.department));
+      case "toggle_ti":
+        return d.name ? `${e(d.name)} → TI: ${d.is_ti ? "sim" : "não"}` : "—";
+      case "toggle_admin":
+        return d.name ? `${e(d.name)} → Admin: ${d.is_admin ? "sim" : "não"}` : "—";
+      case "toggle_status":
+        return d.name ? `${e(d.name)} → ${d.status === "inactive" ? "Inativo" : "Ativo"}` : "—";
+      case "set_weekly_days":
+        return d.name ? `${e(d.name)} → ${d.weekly_office_days}d/semana` : "—";
+
+      case "approve_access":
+      case "refuse_access":
+        return d.email ? e(d.email) : "—";
+
+      case "create_department":
+      case "delete_department":
+        return d.name ? e(d.name) : "—";
+      case "update_department":
+        return parts(d.name && e(d.name), `vagas: ${d.can_book_spot ? "sim" : "não"}`);
+
+      case "update_spot_capacity": {
+        const when = d.specific_date ? fd(d.specific_date) : (DOW_PT[d.day_of_week] || d.day_of_week || "");
+        return parts(when, `${d.capacity} vagas`);
+      }
+
+      case "update_desk_type":
+        return parts(d.desk_name && e(d.desk_name), `Tipo: ${d.type}`,
+          d.owner_name && e(d.owner_name));
+      case "update_rotative_days": {
+        const days = Array.isArray(d.rotative_days_next)
+          ? (d.rotative_days_next.map(x => DOW_PT[x] || x).join(", ") || "nenhum")
+          : "—";
+        const from = d.rotative_days_next_from ? ` a partir de ${fd(d.rotative_days_next_from)}` : "";
+        return `${days}${from}`;
+      }
+
+      case "create_room":
+      case "update_room":
+        return parts(d.name && e(d.name), d.capacity && `${d.capacity} pessoas`);
+      case "deactivate_room":
+        return parts(d.name && e(d.name),
+          d.cancelled_bookings > 0 && `${d.cancelled_bookings} reservas canceladas`);
+
+      case "set_ti_location":
+        return parts(d.member_name && e(d.member_name), d.date && fd(d.date),
+          TI_LOCATIONS[d.location] || d.location);
+      case "clear_ti_location":
+        return parts(d.member_name && e(d.member_name), d.date && fd(d.date));
+
+      default:
+        return Object.entries(d)
+          .filter(([, v]) => v !== null && v !== undefined)
+          .map(([k, v]) => `${k}: ${typeof v === "object" ? JSON.stringify(v) : e(String(v))}`)
+          .join(" · ") || "—";
+    }
+  }
+
+  let auditPage = 1;
+
+  async function loadAudit(page) {
+    if (page !== undefined) auditPage = page;
+    const tbody = document.getElementById("audit-body");
+    const paginEl = document.getElementById("audit-pagination");
+    try {
+      const result = await API.get(`/audit?page=${auditPage}&limit=50`);
+      const logs = result.data;
+      if (logs.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="4" class="empty-state">Nenhuma ação registrada</td></tr>';
+        paginEl.innerHTML = "";
+        return;
+      }
+      tbody.innerHTML = logs.map((l) => {
+        const dt = new Date(l.created_at.replace(" ", "T") + "Z");
+        const dateStr = isNaN(dt) ? l.created_at : dt.toLocaleDateString("pt-BR") + " " + dt.toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" });
+        const details = renderAuditDetails(l.action, l.details_parsed);
+        return `<tr>
+          <td style="white-space:nowrap;color:var(--text-muted);font-size:.8rem">${dateStr}</td>
+          <td>${escapeHtml(l.actor_name)}</td>
+          <td><span style="font-size:.8rem;font-weight:600;padding:.15rem .5rem;border-radius:4px;background:var(--bg)">${escapeHtml(l.action_label)}</span></td>
+          <td style="font-size:.8125rem;color:var(--text-muted)">${details}</td>
+        </tr>`;
+      }).join("");
+      paginEl.innerHTML = "";
+      if (result.pages > 1) {
+        for (let p = 1; p <= result.pages; p++) {
+          const btn = document.createElement("button");
+          btn.className = `btn btn-sm ${p === auditPage ? "btn-primary" : "btn-ghost"}`;
+          btn.textContent = p;
+          btn.onclick = () => loadAudit(p);
+          paginEl.appendChild(btn);
+        }
+      }
+    } catch (err) {
+      tbody.innerHTML = `<tr><td colspan="4" class="empty-state">${escapeHtml(err.message)}</td></tr>`;
+    }
+  }
+
+  loadAudit();
+</script>
+</body>
+</html>

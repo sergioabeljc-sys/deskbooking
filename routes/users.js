@@ -9,7 +9,7 @@ const { validateEmail, validateName, validatePassword } = require("../utils/vali
 // Listar todos os usuários (admin)
 router.get("/", authMiddleware, adminMiddleware, (req, res) => {
   const users = db
-    .prepare("SELECT id, name, email, is_admin, is_ti, weekly_office_days, company, department, created_at FROM users ORDER BY name ASC")
+    .prepare("SELECT id, name, email, is_admin, is_ti, weekly_office_days, company, department, status, created_at FROM users ORDER BY name ASC")
     .all();
   res.json(users);
 });
@@ -114,6 +114,23 @@ router.put("/:id/toggle-admin", authMiddleware, adminMiddleware, (req, res) => {
   res.json(updated);
 });
 
+// Alternar status ativo/inativo (admin)
+router.put("/:id/toggle-status", authMiddleware, adminMiddleware, (req, res) => {
+  const userId = parseInt(req.params.id, 10);
+  if (userId === req.user.id)
+    return res.status(400).json({ error: "Você não pode alterar seu próprio status" });
+
+  const user = db.prepare("SELECT * FROM users WHERE id = ?").get(userId);
+  if (!user) return res.status(404).json({ error: "Usuário não encontrado" });
+
+  const newStatus = user.status === "inactive" ? "active" : "inactive";
+  db.prepare("UPDATE users SET status = ? WHERE id = ?").run(newStatus, userId);
+  auditLog(req.user.id, req.user.name, "toggle_status", "user", userId, {
+    name: user.name, status: newStatus,
+  });
+  res.json({ ok: true, status: newStatus });
+});
+
 // Remover usuário (admin)
 router.delete("/:id", authMiddleware, adminMiddleware, (req, res) => {
   const userId = parseInt(req.params.id, 10);
@@ -123,9 +140,20 @@ router.delete("/:id", authMiddleware, adminMiddleware, (req, res) => {
   const target = db.prepare("SELECT name, email FROM users WHERE id = ?").get(userId);
   if (!target) return res.status(404).json({ error: "Usuário não encontrado" });
 
-  // Libera mesas cujo dono está sendo excluído — evita owner_id órfão (#14)
+  // Cancela reservas FUTURAS (após hoje) — reservas do dia atual e passadas são preservadas
+  const today = new Date().toISOString().split("T")[0];
+  db.prepare("DELETE FROM bookings WHERE user_id = ? AND date > ?").run(userId, today);
+  db.prepare("DELETE FROM room_bookings WHERE user_id = ? AND date > ?").run(userId, today);
+  db.prepare("DELETE FROM spot_bookings WHERE user_id = ? AND date > ?").run(userId, today);
+
+  // Libera mesas cujo dono está sendo excluído
   db.prepare("UPDATE desks SET owner_id = NULL WHERE owner_id = ?").run(userId);
 
+  // Limpa referências sem FK automática
+  db.prepare("UPDATE departments SET updated_by = NULL WHERE updated_by = ?").run(userId);
+  db.prepare("UPDATE spot_capacity SET updated_by = NULL WHERE updated_by = ?").run(userId);
+
+  // Exclui o usuário — ON DELETE SET NULL nas FKs preserva reservas passadas com user_id = NULL
   db.prepare("DELETE FROM users WHERE id = ?").run(userId);
   auditLog(req.user.id, req.user.name, "delete_user", "user", userId, { name: target.name, email: target.email });
   res.json({ ok: true });

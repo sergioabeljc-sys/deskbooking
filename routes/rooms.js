@@ -134,9 +134,11 @@ router.delete("/:id", authMiddleware, requireRole("admin"), (req, res) => {
   // Busca reservas futuras confirmadas para notificar
   const futureBookings = db
     .prepare(
-      `SELECT rb.id, rb.date, rb.start_time, rb.end_time, u.email, u.name AS user_name
+      `SELECT rb.id, rb.date, rb.start_time, rb.end_time,
+              COALESCE(u.email, '') AS email,
+              COALESCE(u.name, 'Usuário removido') AS user_name
        FROM room_bookings rb
-       JOIN users u ON u.id = rb.user_id
+       LEFT JOIN users u ON u.id = rb.user_id
        WHERE rb.room_id = ? AND rb.status = 'confirmed' AND rb.date >= date('now')`
     )
     .all(roomId);
@@ -175,6 +177,24 @@ router.delete("/:id", authMiddleware, requireRole("admin"), (req, res) => {
   res.json({ ok: true, cancelled_bookings: futureBookings.length });
 });
 
+// ─── Minhas Reservas ─────────────────────────────────────────────────────────
+
+// GET /api/rooms/my-bookings — reservas futuras do usuário logado
+router.get("/my-bookings", authMiddleware, (req, res) => {
+  const today = new Date().toISOString().slice(0, 10);
+  const bookings = db
+    .prepare(
+      `SELECT rb.id, rb.date, rb.start_time, rb.end_time, rb.status,
+              r.name AS room_name, r.capacity
+       FROM room_bookings rb
+       JOIN rooms r ON r.id = rb.room_id
+       WHERE rb.user_id = ? AND rb.date >= ? AND rb.status = 'confirmed'
+       ORDER BY rb.date ASC, rb.start_time ASC`
+    )
+    .all(req.user.id, today);
+  res.json(bookings);
+});
+
 // ─── Cancelamento de Reserva ─────────────────────────────────────────────────
 
 // DELETE /api/rooms/bookings/:id — cancela reserva
@@ -184,10 +204,12 @@ router.delete("/bookings/:id", authMiddleware, (req, res) => {
 
   const booking = db
     .prepare(
-      `SELECT rb.*, r.name AS room_name, u.email AS user_email, u.name AS user_name
+      `SELECT rb.*, r.name AS room_name,
+              COALESCE(u.email, '') AS user_email,
+              COALESCE(u.name, 'Usuário removido') AS user_name
        FROM room_bookings rb
        JOIN rooms r ON r.id = rb.room_id
-       JOIN users u ON u.id = rb.user_id
+       LEFT JOIN users u ON u.id = rb.user_id
        WHERE rb.id = ?`
     )
     .get(bookingId);
@@ -235,9 +257,10 @@ router.delete("/bookings/:id", authMiddleware, (req, res) => {
   }
 
   auditLog(req.user.id, req.user.name, "cancel_room_booking", "room_booking", bookingId, {
-    room_id: booking.room_id,
+    room_name: booking.room_name,
     date: booking.date,
     start_time: booking.start_time,
+    end_time: booking.end_time,
   });
 
   res.json({ ok: true });
@@ -254,6 +277,11 @@ router.get("/:id/availability", authMiddleware, (req, res) => {
     return res.status(400).json({ error: "Parâmetro date (YYYY-MM-DD) é obrigatório." });
   }
 
+  const dowAvail = new Date(date + "T12:00:00Z").getUTCDay();
+  if (dowAvail === 0 || dowAvail === 6) {
+    return res.status(400).json({ error: "Reservas de sala não são permitidas nos fins de semana." });
+  }
+
   const room = db.prepare("SELECT * FROM rooms WHERE id = ? AND active = 1").get(roomId);
   if (!room) return res.status(404).json({ error: "Sala não encontrada." });
 
@@ -262,10 +290,10 @@ router.get("/:id/availability", authMiddleware, (req, res) => {
   const bookings = db
     .prepare(
       `SELECT rb.id, rb.start_time, rb.end_time, rb.status,
-              ${isAdmin ? "u.name AS reserved_by, u.email AS reserved_by_email," : ""}
+              ${isAdmin ? "COALESCE(u.name, 'Usuário removido') AS reserved_by, COALESCE(u.email, '') AS reserved_by_email," : ""}
               rb.user_id
        FROM room_bookings rb
-       JOIN users u ON u.id = rb.user_id
+       LEFT JOIN users u ON u.id = rb.user_id
        WHERE rb.room_id = ? AND rb.date = ? AND rb.status = 'confirmed'
        ORDER BY rb.start_time ASC`
     )
@@ -350,6 +378,23 @@ router.post("/:id/bookings", authMiddleware, (req, res) => {
     return res.status(400).json({ error: "Reserva antecipada máxima de 30 dias." });
   }
 
+  // Fins de semana não permitidos
+  const dow = new Date(date + "T12:00:00Z").getUTCDay();
+  if (dow === 0 || dow === 6) {
+    return res.status(400).json({ error: "Reservas de sala não são permitidas nos fins de semana." });
+  }
+
+  // Horário passado: start_time deve ser futuro quando a data é hoje (Brasil UTC-3)
+  if (date === today) {
+    const now = new Date();
+    const brH = (now.getUTCHours() - 3 + 24) % 24;
+    const brM = now.getUTCMinutes();
+    const currentTimeBR = `${String(brH).padStart(2, "0")}:${String(brM).padStart(2, "0")}`;
+    if (start_time <= currentTimeBR) {
+      return res.status(400).json({ error: "Não é possível reservar um horário já passado." });
+    }
+  }
+
   const room = db.prepare("SELECT * FROM rooms WHERE id = ? AND active = 1").get(roomId);
   if (!room) return res.status(404).json({ error: "Sala não encontrada." });
 
@@ -401,7 +446,7 @@ router.post("/:id/bookings", authMiddleware, (req, res) => {
   const booking = db.prepare("SELECT * FROM room_bookings WHERE id = ?").get(bookingId);
 
   auditLog(req.user.id, req.user.name, "create_room_booking", "room_booking", bookingId, {
-    room_id: roomId,
+    room_name: room.name,
     date,
     start_time,
     end_time,

@@ -24,7 +24,7 @@ app.use(
     contentSecurityPolicy: {
       directives: {
         defaultSrc: ["'self'"],
-        scriptSrc: ["'self'"],
+        scriptSrc: ["'self'", "'unsafe-inline'"],
         styleSrc: ["'self'", "'unsafe-inline'"],
         imgSrc: [
           "'self'",
@@ -73,7 +73,7 @@ app.use(
     standardHeaders: true,
     legacyHeaders: false,
     message: { error: "Muitas requisições. Tente novamente em instantes." },
-    skip: () => process.env.NODE_ENV === "test",
+    skip: () => process.env.NODE_ENV !== "production",
   })
 );
 
@@ -86,7 +86,7 @@ app.use(
     standardHeaders: true,
     legacyHeaders: false,
     message: { error: "Muitas tentativas de login. Tente novamente em 15 minutos." },
-    skip: () => process.env.NODE_ENV === "test",
+    skip: () => process.env.NODE_ENV !== "production",
   })
 );
 
@@ -98,7 +98,7 @@ app.use(
     standardHeaders: true,
     legacyHeaders: false,
     message: { error: "Limite de cadastros atingido. Tente novamente em 1 hora." },
-    skip: () => process.env.NODE_ENV === "test",
+    skip: () => process.env.NODE_ENV !== "production",
   })
 );
 
@@ -109,7 +109,7 @@ const adminLimiter = rateLimit({
   standardHeaders: true,
   legacyHeaders: false,
   message: { error: "Muitas requisições. Tente novamente em instantes." },
-  skip: () => process.env.NODE_ENV === "test",
+  skip: () => process.env.NODE_ENV !== "production",
 });
 app.use("/api/bookings/export", adminLimiter);
 app.use("/api/users", adminLimiter);

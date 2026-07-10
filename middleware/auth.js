@@ -21,7 +21,7 @@ function authMiddleware(req, res, next) {
     // Re-valida status e permissões no banco para garantir revogação imediata (#6, #7)
     const dbUser = db.prepare("SELECT status, is_admin FROM users WHERE id = ?").get(decoded.id);
     if (!dbUser) return res.status(401).json({ error: "Token inválido ou expirado" });
-    if (dbUser.status === "revoked" || dbUser.status === "pending") {
+    if (["revoked", "pending", "inactive"].includes(dbUser.status)) {
       return res.status(403).json({ error: "Acesso revogado. Contate o administrador." });
     }
     req.user = { ...decoded, is_admin: dbUser.is_admin };

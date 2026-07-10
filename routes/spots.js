@@ -43,10 +43,12 @@ router.get("/week", authMiddleware, (req, res) => {
   const bookings = db
     .prepare(
       `SELECT sb.date, sb.start_time, sb.end_time,
-              u.name, u.email, u.company,
+              COALESCE(u.name, 'Usuário removido') AS name,
+              COALESCE(u.email, '') AS email,
+              COALESCE(u.company, '') AS company,
               CASE WHEN d.id IS NOT NULL THEN 1 ELSE 0 END AS is_desk_owner
        FROM spot_bookings sb
-       JOIN users u ON u.id = sb.user_id
+       LEFT JOIN users u ON u.id = sb.user_id
        LEFT JOIN desks d ON d.owner_id = u.id AND d.is_active = 1 AND d.type = 'fixed'
        WHERE sb.date IN (${placeholders}) AND sb.status = 'confirmed'
        ORDER BY sb.date ASC, sb.start_time ASC, u.name ASC`
@@ -314,9 +316,11 @@ router.get("/bookings/all", authMiddleware, adminMiddleware, (req, res) => {
   const total = db.prepare(`SELECT COUNT(*) AS cnt FROM spot_bookings sb ${where}`).get(...params).cnt;
   const data  = db.prepare(`
     SELECT sb.id, sb.date, sb.start_time, sb.end_time, sb.status, sb.created_at,
-           u.name AS user_name, u.email AS user_email, u.company
+           COALESCE(u.name, 'Usuário removido') AS user_name,
+           COALESCE(u.email, '') AS user_email,
+           COALESCE(u.company, '') AS company
     FROM spot_bookings sb
-    JOIN users u ON u.id = sb.user_id
+    LEFT JOIN users u ON u.id = sb.user_id
     ${where}
     ORDER BY sb.date DESC, sb.start_time ASC
     LIMIT ? OFFSET ?
@@ -332,9 +336,10 @@ router.delete("/bookings/:id", authMiddleware, (req, res) => {
 
   const booking = db
     .prepare(
-      `SELECT sb.*, u.email AS user_email, u.name AS user_name
+      `SELECT sb.*, COALESCE(u.email, '') AS user_email,
+              COALESCE(u.name, 'Usuário removido') AS user_name
        FROM spot_bookings sb
-       JOIN users u ON u.id = sb.user_id
+       LEFT JOIN users u ON u.id = sb.user_id
        WHERE sb.id = ?`
     )
     .get(bookingId);
@@ -396,6 +401,8 @@ router.delete("/bookings/:id", authMiddleware, (req, res) => {
 
   auditLog(req.user.id, req.user.name, "cancel_spot_booking", "spot_booking", bookingId, {
     date: booking.date,
+    start_time: booking.start_time,
+    end_time: booking.end_time,
   });
 
   res.json({ ok: true });

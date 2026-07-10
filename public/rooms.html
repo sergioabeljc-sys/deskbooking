@@ -1,0 +1,356 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Salas de Reunião — WorkPlace</title>
+  <link rel="stylesheet" href="/css/style.css" />
+  <link rel="icon" type="image/svg+xml" href="/img/favicon.svg" />
+  <style>
+    .page-content { max-width: 960px; margin: 1.5rem auto; padding: 0 1rem 3rem; }
+
+    .rooms-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 1rem; margin-bottom: 1.5rem; }
+
+    .room-card {
+      border: 2px solid var(--border);
+      border-radius: var(--radius);
+      padding: 1rem 1.25rem;
+      cursor: pointer;
+      transition: border-color .15s, box-shadow .15s;
+      background: var(--surface);
+    }
+    .room-card:hover { border-color: var(--primary); box-shadow: 0 2px 8px rgba(37,99,235,.12); }
+    .room-card.active { border-color: var(--primary); background: #eff6ff; }
+    .room-card h3 { font-size: 1rem; font-weight: 700; margin-bottom: .25rem; }
+    .room-card p { font-size: .8rem; color: var(--text-muted); }
+    .resource-tags { display: flex; flex-wrap: wrap; gap: .3rem; margin-top: .5rem; }
+    .resource-tag { font-size: .7rem; background: #f1f5f9; border: 1px solid var(--border); border-radius: 4px; padding: .1rem .4rem; color: var(--text-muted); }
+
+    /* Availability timeline */
+    .slots-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(68px,1fr)); gap: .35rem; }
+    .slot {
+      padding: .35rem .2rem; border-radius: 5px; font-size: .72rem; text-align: center;
+      font-weight: 500; cursor: pointer; border: 1px solid transparent; transition: all .12s;
+    }
+    .slot.free { background: #dcfce7; color: #15803d; border-color: #bbf7d0; }
+    .slot.free:hover { background: #16a34a; color: #fff; }
+    .slot.free.selected { background: var(--primary); color: #fff; border-color: var(--primary); }
+    .slot.busy { background: #fee2e2; color: #b91c1c; border-color: #fecaca; cursor: not-allowed; }
+    .slot.past { background: #f1f5f9; color: #94a3b8; border-color: #e2e8f0; cursor: not-allowed; text-decoration: line-through; }
+
+    /* Time picker */
+    .time-row { display: flex; align-items: center; gap: .75rem; flex-wrap: wrap; margin-top: 1rem; padding-top: 1rem; border-top: 1px solid var(--border); }
+    .time-row label { font-size: .875rem; font-weight: 500; white-space: nowrap; }
+    .time-row select { padding: .4rem .6rem; border: 1px solid var(--border); border-radius: var(--radius); font-size: .875rem; background: var(--surface); outline: none; }
+    .time-row select:focus { border-color: var(--primary); }
+
+    /* My room bookings */
+    .rbooking-item { display: flex; align-items: center; justify-content: space-between; padding: .65rem 1rem; border: 1px solid var(--border); border-radius: var(--radius); background: var(--surface); }
+    .rbooking-item + .rbooking-item { margin-top: .5rem; }
+
+    .empty-hint { text-align: center; color: var(--text-muted); font-size: .875rem; padding: 2rem 0; }
+  </style>
+</head>
+<body>
+
+<header class="header">
+  <div class="header-brand">WorkPlace<span class="header-brand-sub">Barra Funda · SP</span></div>
+  <div class="header-user">
+    <div class="header-nav"><a href="/week.html">Presenças</a></div>
+    <div class="header-nav"><a href="/spot-booking.html">Reservar Vaga</a></div>
+    <div class="header-nav"><a href="/rooms.html" style="color:var(--primary);font-weight:600">Salas</a></div>
+    <div class="header-nav" id="admin-link" style="display:none"><a href="/admin-users.html">Admin</a></div>
+    <span id="user-name" style="font-size:.85rem;color:var(--text-muted)"></span>
+    <button class="btn btn-ghost btn-sm" onclick="logout()">Sair</button>
+  </div>
+</header>
+
+<div class="page-content">
+
+  <div style="display:grid;grid-template-columns:1fr 320px;gap:1.5rem;align-items:start">
+
+    <!-- LEFT: Rooms + availability -->
+    <div>
+      <!-- Room picker -->
+      <div class="card" style="margin-bottom:1rem">
+        <div class="card-header">Selecionar Sala</div>
+        <div class="card-body" style="padding:1.25rem">
+          <div class="rooms-grid" id="rooms-grid">
+            <p style="color:var(--text-muted)">Carregando salas...</p>
+          </div>
+        </div>
+      </div>
+
+      <!-- Date + availability -->
+      <div class="card" id="avail-card" style="display:none">
+        <div class="card-header">
+          <span id="avail-card-title">Disponibilidade</span>
+          <div style="display:flex;gap:.5rem;align-items:center">
+            <button class="btn btn-ghost btn-sm" id="prev-day">&#8592;</button>
+            <input type="date" id="date-input" style="border:1px solid var(--border);border-radius:var(--radius);padding:.3rem .5rem;font-size:.85rem" />
+            <button class="btn btn-ghost btn-sm" id="next-day">&#8594;</button>
+          </div>
+        </div>
+        <div class="card-body" style="padding:1.25rem">
+          <div class="slots-grid" id="slots-grid">
+            <p style="color:var(--text-muted);font-size:.875rem;grid-column:1/-1">Selecione uma data.</p>
+          </div>
+
+          <div class="time-row">
+            <label>Início:</label>
+            <select id="start-time"></select>
+            <label>Fim:</label>
+            <select id="end-time"></select>
+            <button class="btn btn-primary btn-sm" id="btn-book" disabled>Reservar</button>
+          </div>
+          <div id="book-msg" style="margin-top:.5rem;font-size:.85rem"></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- RIGHT: My bookings -->
+    <div>
+      <div class="card">
+        <div class="card-header">Minhas Reservas de Sala</div>
+        <div class="card-body" style="padding:1rem">
+          <div id="my-room-bookings">
+            <p style="color:var(--text-muted);font-size:.875rem">Carregando...</p>
+          </div>
+        </div>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<script src="/js/api.js"></script>
+<script>
+  // ── Auth ──────────────────────────────────────────────────────────────────
+  const _tok = localStorage.getItem("token");
+  if (!_tok) { location.href = "/index.html"; }
+  function parseJwt(t) { try { const b=t.split(".")[1].replace(/-/g,"+").replace(/_/g,"/"); return JSON.parse(new TextDecoder().decode(Uint8Array.from(atob(b),c=>c.charCodeAt(0)))); } catch { return {}; } }
+  const me = parseJwt(_tok);
+  document.getElementById("user-name").textContent = me.name || me.email || "Usuário";
+  if (me.is_admin) document.getElementById("admin-link").style.display = "";
+  function logout() { API.clearSession(); location.href = "/index.html"; }
+
+  // ── Helpers ───────────────────────────────────────────────────────────────
+  function nextWeekday(d) {
+    const dt = d ? new Date(d + "T12:00:00Z") : new Date();
+    const dow = dt.getUTCDay();
+    if (dow === 6) dt.setUTCDate(dt.getUTCDate() + 2);
+    else if (dow === 0) dt.setUTCDate(dt.getUTCDate() + 1);
+    return dt.toISOString().slice(0, 10);
+  }
+
+  function isWeekend(iso) {
+    const dow = new Date(iso + "T12:00:00Z").getUTCDay();
+    return dow === 0 || dow === 6;
+  }
+
+  function currentTimeBR() {
+    const now = new Date();
+    const h = (now.getUTCHours() - 3 + 24) % 24;
+    const m = now.getUTCMinutes();
+    return `${String(h).padStart(2,"0")}:${String(m).padStart(2,"0")}`;
+  }
+
+  // ── State ─────────────────────────────────────────────────────────────────
+  let rooms = [];
+  let selectedRoom = null;
+  let selectedDate = nextWeekday();
+  let selectedStartSlot = null; // "HH:MM"
+
+  // ── Time selects ──────────────────────────────────────────────────────────
+  const TIMES = [];
+  for (let h = 8; h <= 18; h++) {
+    TIMES.push(`${String(h).padStart(2,"0")}:00`);
+    if (h < 18) TIMES.push(`${String(h).padStart(2,"0")}:30`);
+  }
+  const startSel = document.getElementById("start-time");
+  const endSel   = document.getElementById("end-time");
+  TIMES.forEach(t => { startSel.add(new Option(t,t)); endSel.add(new Option(t,t)); });
+  startSel.value = "09:00";
+  endSel.value   = "10:00";
+  startSel.addEventListener("change", updateBookBtn);
+  endSel.addEventListener("change", updateBookBtn);
+
+  // ── Date input ────────────────────────────────────────────────────────────
+  const dateInput = document.getElementById("date-input");
+  dateInput.value = selectedDate;
+  dateInput.min   = selectedDate;
+  const maxD = new Date(); maxD.setDate(maxD.getDate()+30);
+  dateInput.max   = maxD.toISOString().slice(0,10);
+  dateInput.addEventListener("change", () => {
+    if (isWeekend(dateInput.value)) { dateInput.value = selectedDate; return; }
+    selectedDate = dateInput.value;
+    loadAvailability();
+  });
+
+  document.getElementById("prev-day").addEventListener("click", () => {
+    let d = new Date(selectedDate + "T12:00:00Z"); d.setUTCDate(d.getUTCDate() - 1);
+    let iso = d.toISOString().slice(0,10);
+    if (isWeekend(iso)) { d.setUTCDate(d.getUTCDate() - (d.getUTCDay() === 0 ? 2 : 1)); iso = d.toISOString().slice(0,10); }
+    if (iso >= dateInput.min) { selectedDate = iso; dateInput.value = iso; loadAvailability(); }
+  });
+  document.getElementById("next-day").addEventListener("click", () => {
+    let d = new Date(selectedDate + "T12:00:00Z"); d.setUTCDate(d.getUTCDate() + 1);
+    let iso = d.toISOString().slice(0,10);
+    if (isWeekend(iso)) { d.setUTCDate(d.getUTCDate() + (d.getUTCDay() === 6 ? 2 : 1)); iso = d.toISOString().slice(0,10); }
+    if (iso <= dateInput.max) { selectedDate = iso; dateInput.value = iso; loadAvailability(); }
+  });
+
+  // ── Load rooms ────────────────────────────────────────────────────────────
+  async function loadRooms() {
+    try {
+      rooms = await API.fetch("/rooms");
+      const grid = document.getElementById("rooms-grid");
+      grid.innerHTML = "";
+      if (rooms.length === 0) {
+        grid.innerHTML = '<p style="color:var(--text-muted);font-size:.875rem">Nenhuma sala disponível.</p>';
+        return;
+      }
+      rooms.forEach(r => {
+        const card = document.createElement("div");
+        card.className = "room-card";
+        card.dataset.id = r.id;
+        card.innerHTML = `
+          <h3>${esc(r.name)}</h3>
+          <p>Capacidade: ${r.capacity} pessoas</p>
+          <div class="resource-tags">${(r.resources||[]).map(x=>`<span class="resource-tag">${esc(x)}</span>`).join("")}</div>
+        `;
+        card.addEventListener("click", () => selectRoom(r.id));
+        grid.appendChild(card);
+      });
+    } catch(e) {
+      document.getElementById("rooms-grid").innerHTML = `<p style="color:var(--danger)">${e.message}</p>`;
+    }
+  }
+
+  function selectRoom(id) {
+    selectedRoom = rooms.find(r => r.id === id);
+    document.querySelectorAll(".room-card").forEach(c => {
+      c.classList.toggle("active", +c.dataset.id === id);
+    });
+    document.getElementById("avail-card").style.display = "";
+    document.getElementById("avail-card-title").textContent = `Disponibilidade — ${selectedRoom.name}`;
+    loadAvailability();
+  }
+
+  // ── Availability ──────────────────────────────────────────────────────────
+  async function loadAvailability() {
+    if (!selectedRoom) return;
+    const grid = document.getElementById("slots-grid");
+    grid.innerHTML = '<p style="color:var(--text-muted);font-size:.875rem;grid-column:1/-1">Carregando...</p>';
+
+    try {
+      const data = await API.fetch(`/rooms/${selectedRoom.id}/availability?date=${selectedDate}`);
+      grid.innerHTML = "";
+      const isToday = new Date().toISOString().slice(0,10) === selectedDate;
+      const nowBR = currentTimeBR();
+      data.slots.forEach(slot => {
+        const isPast = isToday && slot.start <= nowBR;
+        const el = document.createElement("div");
+        if (isPast) {
+          el.className = "slot past";
+          el.title = "Horário passado";
+        } else {
+          el.className = `slot ${slot.available ? "free" : "busy"}`;
+          el.title = slot.available ? "Disponível" : (slot.reserved_by ? `${slot.reserved_by}` : "Ocupado");
+        }
+        el.textContent = slot.start;
+        if (slot.available && !isPast) {
+          el.addEventListener("click", () => {
+            document.querySelectorAll(".slot.selected").forEach(s => s.classList.remove("selected"));
+            el.classList.add("selected");
+            startSel.value = slot.start;
+            endSel.value   = slot.end;
+            updateBookBtn();
+          });
+        }
+        grid.appendChild(el);
+      });
+    } catch(e) {
+      grid.innerHTML = `<p style="color:var(--danger);grid-column:1/-1">${e.message}</p>`;
+    }
+  }
+
+  // ── Book ──────────────────────────────────────────────────────────────────
+  function updateBookBtn() {
+    const st = startSel.value, en = endSel.value;
+    document.getElementById("btn-book").disabled = !selectedRoom || !selectedDate || !st || !en || en <= st;
+  }
+
+  document.getElementById("btn-book").addEventListener("click", async () => {
+    const btn = document.getElementById("btn-book");
+    const msg = document.getElementById("book-msg");
+    btn.disabled = true; msg.textContent = "Reservando..."; msg.style.color = "";
+
+    try {
+      await API.fetch(`/rooms/${selectedRoom.id}/bookings`, {
+        method: "POST",
+        body: JSON.stringify({ date: selectedDate, start_time: startSel.value, end_time: endSel.value }),
+      });
+      msg.style.color = "var(--success)";
+      msg.textContent = "Reserva confirmada!";
+      loadAvailability();
+      loadMyRoomBookings();
+    } catch(e) {
+      msg.style.color = "var(--danger)";
+      msg.textContent = e.message || "Erro ao reservar.";
+      btn.disabled = false;
+    }
+  });
+
+  // ── My room bookings ──────────────────────────────────────────────────────
+  const MONTH_NAMES = ["Jan","Fev","Mar","Abr","Mai","Jun","Jul","Ago","Set","Out","Nov","Dez"];
+
+  async function loadMyRoomBookings() {
+    const el = document.getElementById("my-room-bookings");
+    try {
+      const bookings = await API.fetch("/rooms/my-bookings");
+      if (!bookings.length) {
+        el.innerHTML = '<p style="color:var(--text-muted);font-size:.875rem">Nenhuma reserva futura.</p>';
+        return;
+      }
+      el.innerHTML = bookings.map(b => {
+        const d = new Date(b.date + "T12:00:00");
+        const dateStr = `${d.getDate()} ${MONTH_NAMES[d.getMonth()]}`;
+        return `
+          <div style="display:flex;align-items:center;justify-content:space-between;gap:.5rem;
+                      padding:.6rem .75rem;border:1px solid var(--border);border-radius:var(--radius);
+                      margin-bottom:.4rem;font-size:.85rem">
+            <div>
+              <div style="font-weight:600">${esc(b.room_name)}</div>
+              <div style="color:var(--text-muted)">${dateStr} · ${b.start_time}–${b.end_time}</div>
+            </div>
+            <button class="btn btn-danger btn-sm" onclick="cancelRoomBooking(${b.id},'${esc(b.room_name)}','${b.date}')">Cancelar</button>
+          </div>`;
+      }).join("");
+    } catch(e) {
+      el.innerHTML = `<p style="color:var(--danger);font-size:.85rem">${e.message}</p>`;
+    }
+  }
+
+  async function cancelRoomBooking(id, roomName, date) {
+    if (!confirm(`Cancelar reserva da sala "${roomName}" em ${date}?`)) return;
+    try {
+      await API.fetch(`/rooms/bookings/${id}`, { method: "DELETE" });
+      loadMyRoomBookings();
+      if (selectedRoom && selectedDate === date) loadAvailability();
+    } catch(e) {
+      alert(e.message || "Erro ao cancelar.");
+    }
+  }
+
+  // ── Helpers ───────────────────────────────────────────────────────────────
+  function esc(s) {
+    return String(s||"").replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;");
+  }
+
+  // ── Init ──────────────────────────────────────────────────────────────────
+  loadRooms();
+  loadMyRoomBookings();
+</script>
+</body>
+</html>

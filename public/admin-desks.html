@@ -1,0 +1,265 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Admin — Mesas — WorkPlace</title>
+  <link rel="stylesheet" href="/css/style.css" />
+  <link rel="icon" type="image/svg+xml" href="/img/favicon.svg" />
+  <style>
+    .page-content { max-width: 960px; margin: 1.5rem auto; padding: 0 1rem 3rem; }
+    .admin-tabs { display: flex; gap: .25rem; padding: 0 1rem; border-bottom: 1px solid var(--border); background: var(--surface); flex-wrap: wrap; }
+    .admin-tab { padding: .75rem 1.25rem; font-size: .875rem; font-weight: 500; color: var(--text-muted); cursor: pointer; border-bottom: 2px solid transparent; margin-bottom: -1px; text-decoration: none; }
+    .admin-tab:hover { color: var(--text); }
+    .admin-tab.active { color: var(--primary); border-bottom-color: var(--primary); }
+    .table-wrap { overflow-x: auto; }
+    table { width: 100%; border-collapse: collapse; font-size: .875rem; }
+    th { text-align: left; padding: .5rem .75rem; font-size: .75rem; font-weight: 600; color: var(--text-muted); text-transform: uppercase; letter-spacing: .4px; border-bottom: 2px solid var(--border); }
+    td { padding: .6rem .75rem; border-bottom: 1px solid var(--border); vertical-align: middle; }
+    tr:last-child td { border-bottom: none; }
+    tr:hover td { background: #f8fafc; }
+    .modal-overlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,.45); z-index: 300; align-items: center; justify-content: center; }
+    .modal-overlay.open { display: flex; }
+    .modal-box { background: var(--surface); border-radius: var(--radius); width: 420px; max-width: 95vw; box-shadow: 0 8px 32px rgba(0,0,0,.2); padding: 1.5rem; }
+    .modal-title { font-size: 1rem; font-weight: 600; margin-bottom: 1rem; }
+    .form-group { display: flex; flex-direction: column; gap: .35rem; margin-bottom: .85rem; }
+    .form-group label { font-size: .8125rem; font-weight: 500; color: var(--text-muted); }
+    .form-group input, .form-group select { padding: .45rem .6rem; border: 1px solid var(--border); border-radius: var(--radius); font-size: .875rem; background: var(--surface); }
+    .modal-actions { display: flex; gap: .5rem; margin-top: 1rem; }
+  </style>
+</head>
+<body>
+
+<header class="header">
+  <div class="header-brand">WorkPlace — Admin<span class="header-brand-sub">Barra Funda · SP</span></div>
+  <div class="header-user">
+    <div class="header-nav"><a href="/week.html">Presenças</a></div>
+    <div class="header-nav"><a href="/spot-booking.html">Reservar Vaga</a></div>
+    <div class="header-nav"><a href="/rooms.html">Salas</a></div>
+    <div class="header-nav"><a href="/admin-users.html" style="color:var(--primary);font-weight:600">Admin</a></div>
+    <span id="user-name" style="font-size:.85rem;color:var(--text-muted)"></span>
+    <button class="btn btn-ghost btn-sm" onclick="logout()">Sair</button>
+  </div>
+</header>
+
+<nav class="admin-tabs">
+  <a class="admin-tab" href="/admin-users.html">Usuários</a>
+  <a class="admin-tab" href="/admin-rooms.html">Salas</a>
+  <a class="admin-tab" href="/admin-capacity.html">Vagas &amp; Departamentos</a>
+  <a class="admin-tab active" href="/admin-desks.html">Mesas</a>
+  <a class="admin-tab" href="/admin-bookings.html">Reservas</a>
+  <a class="admin-tab" href="/admin-audit.html">Auditoria</a>
+</nav>
+
+<div class="page-content">
+  <div class="card">
+    <div class="card-header">
+      Mesas
+      <button class="btn btn-primary btn-sm" onclick="showAddDesk()">+ Nova Mesa</button>
+    </div>
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr>
+            <th>Nome</th>
+            <th>Posição</th>
+            <th>Tipo</th>
+            <th>Dono</th>
+            <th>Status</th>
+            <th></th>
+          </tr>
+        </thead>
+        <tbody id="desks-body">
+          <tr><td colspan="6" class="empty-state">Carregando...</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
+<!-- Modal: Configurar Tipo de Mesa -->
+<div id="modal-desk-type" class="modal-overlay">
+  <div class="modal-box">
+    <div class="modal-title">Configurar Tipo de Mesa</div>
+    <div class="form-group">
+      <label>Tipo</label>
+      <select id="desk-type-select" onchange="onDeskTypeChange()">
+        <option value="rotative">Rotativa (sem dono, sempre no pool)</option>
+        <option value="rotative_owner">Com Dono (dias configuráveis)</option>
+        <option value="fixed">Fixa Exclusiva (reservada para o dono)</option>
+      </select>
+    </div>
+    <div class="form-group" id="desk-owner-group" style="display:none">
+      <label>Dono</label>
+      <select id="desk-owner-select">
+        <option value="">Selecione o dono...</option>
+      </select>
+    </div>
+    <div class="form-group" id="desk-days-group" style="display:none">
+      <label>Dias em que a mesa entra no pool</label>
+      <div style="display:flex;gap:.5rem;flex-wrap:wrap;margin-top:.25rem">
+        <label style="display:flex;align-items:center;gap:.35rem;font-size:.875rem;cursor:pointer"><input type="checkbox" value="mon" class="desk-day-chk"> Seg</label>
+        <label style="display:flex;align-items:center;gap:.35rem;font-size:.875rem;cursor:pointer"><input type="checkbox" value="tue" class="desk-day-chk"> Ter</label>
+        <label style="display:flex;align-items:center;gap:.35rem;font-size:.875rem;cursor:pointer"><input type="checkbox" value="wed" class="desk-day-chk"> Qua</label>
+        <label style="display:flex;align-items:center;gap:.35rem;font-size:.875rem;cursor:pointer"><input type="checkbox" value="thu" class="desk-day-chk"> Qui</label>
+        <label style="display:flex;align-items:center;gap:.35rem;font-size:.875rem;cursor:pointer"><input type="checkbox" value="fri" class="desk-day-chk"> Sex</label>
+      </div>
+      <p style="font-size:.78rem;color:var(--text-muted);margin-top:.4rem">Nos demais dias a mesa fica reservada para o dono.</p>
+    </div>
+    <input type="hidden" id="desk-type-id" />
+    <div class="modal-actions">
+      <button class="btn btn-primary" onclick="submitDeskType()">Salvar</button>
+      <button class="btn btn-ghost" onclick="closeDeskTypeModal()">Cancelar</button>
+    </div>
+  </div>
+</div>
+
+<!-- Modal: Nova Mesa -->
+<div id="modal-add-desk" class="modal-overlay">
+  <div class="modal-box">
+    <div class="modal-title">Nova Mesa</div>
+    <div class="form-group">
+      <label>Nome</label>
+      <input type="text" id="new-desk-name" placeholder="Mesa 13" />
+    </div>
+    <div class="form-group">
+      <label>Coluna (X)</label>
+      <input type="number" id="new-desk-x" min="1" placeholder="1" />
+    </div>
+    <div class="form-group">
+      <label>Linha (Y)</label>
+      <input type="number" id="new-desk-y" min="1" placeholder="1" />
+    </div>
+    <div class="modal-actions">
+      <button class="btn btn-primary" onclick="submitAddDesk()">Criar</button>
+      <button class="btn btn-ghost" onclick="closeAddDeskModal()">Cancelar</button>
+    </div>
+  </div>
+</div>
+
+<script src="/js/api.js"></script>
+<script>
+  const user = requireAuth(true);
+  if (user) document.getElementById("user-name").textContent = user.name;
+
+  const DAY_LABELS = { mon:"Seg", tue:"Ter", wed:"Qua", thu:"Qui", fri:"Sex" };
+  const VALID_DAYS = ["mon","tue","wed","thu","fri"];
+
+  async function loadDesks() {
+    const tbody = document.getElementById("desks-body");
+    try {
+      const [desks, users] = await Promise.all([API.get("/desks"), API.get("/users")]);
+      const userMap = Object.fromEntries(users.map((u) => [u.id, u.name]));
+      tbody.innerHTML = desks.map((d) => {
+        const rotDays = (() => { try { return JSON.parse(d.rotative_days || "[]"); } catch { return []; } })();
+        let typeBadge, typeLabel;
+        if (d.type === "fixed") { typeBadge = "badge-blue"; typeLabel = "Fixa Exclusiva"; }
+        else if (d.type === "rotative" && d.owner_id) { typeBadge = "badge-success"; typeLabel = "Com Dono"; }
+        else { typeBadge = "badge-gray"; typeLabel = "Rotativa"; }
+        const donoCell = d.owner_id
+          ? `<span>${escapeHtml(userMap[d.owner_id] || "ID " + d.owner_id)}</span>`
+          : `<span style="color:var(--text-muted)">—</span>`;
+        const daysInfo = d.type === "rotative" && d.owner_id && rotDays.length > 0
+          ? `<div style="font-size:.75rem;color:var(--text-muted);margin-top:.15rem">${rotDays.map((x) => DAY_LABELS[x] || x).join(", ")}</div>`
+          : "";
+        return `<tr>
+          <td>${escapeHtml(d.name)}</td>
+          <td>Col ${d.pos_x}, Lin ${d.pos_y}</td>
+          <td><span class="badge ${typeBadge}">${typeLabel}</span>${daysInfo}</td>
+          <td>${donoCell}</td>
+          <td><span class="badge ${d.is_active ? "badge-success" : "badge-gray"}">${d.is_active ? "Ativa" : "Inativa"}</span></td>
+          <td style="display:flex;gap:.5rem;flex-wrap:wrap;">
+            <button class="btn btn-ghost btn-sm" onclick='showDeskTypeModal(${JSON.stringify(d).replace(/'/g,"&#39;")})'>Tipo</button>
+            <button class="btn btn-ghost btn-sm" onclick="toggleDesk(${d.id},${d.is_active})">${d.is_active ? "Desativar" : "Ativar"}</button>
+            <button class="btn btn-danger btn-sm" data-id="${d.id}" data-name="${escapeHtml(d.name)}" onclick="deleteDesk(+this.dataset.id,this.dataset.name)">Excluir</button>
+          </td>
+        </tr>`;
+      }).join("");
+    } catch (err) {
+      tbody.innerHTML = `<tr><td colspan="6" class="empty-state">${escapeHtml(err.message)}</td></tr>`;
+    }
+  }
+
+  async function showDeskTypeModal(desk) {
+    document.getElementById("desk-type-id").value = desk.id;
+    const rotDays = (() => { try { return JSON.parse(desk.rotative_days || "[]"); } catch { return []; } })();
+    let uiType;
+    if (desk.type === "fixed") uiType = "fixed";
+    else if (desk.type === "rotative" && desk.owner_id) uiType = "rotative_owner";
+    else uiType = "rotative";
+    document.getElementById("desk-type-select").value = uiType;
+    try {
+      const users = await API.get("/users");
+      const sel = document.getElementById("desk-owner-select");
+      sel.innerHTML = '<option value="">Selecione o dono...</option>' +
+        users.map((u) => `<option value="${u.id}"${desk.owner_id == u.id ? " selected" : ""}>${escapeHtml(u.name)}</option>`).join("");
+    } catch {}
+    document.querySelectorAll(".desk-day-chk").forEach((chk) => { chk.checked = rotDays.includes(chk.value); });
+    onDeskTypeChange();
+    document.getElementById("modal-desk-type").classList.add("open");
+  }
+
+  function closeDeskTypeModal() { document.getElementById("modal-desk-type").classList.remove("open"); }
+
+  function onDeskTypeChange() {
+    const val = document.getElementById("desk-type-select").value;
+    document.getElementById("desk-owner-group").style.display = val !== "rotative" ? "" : "none";
+    document.getElementById("desk-days-group").style.display = val === "rotative_owner" ? "" : "none";
+  }
+
+  async function submitDeskType() {
+    const id = document.getElementById("desk-type-id").value;
+    const uiType = document.getElementById("desk-type-select").value;
+    const ownerId = document.getElementById("desk-owner-select").value;
+    const backendType = uiType === "rotative_owner" ? "rotative" : uiType;
+    const body = { type: backendType };
+    if (uiType !== "rotative" && ownerId) body.owner_id = parseInt(ownerId);
+    if (uiType === "rotative" && !ownerId) body.owner_id = null;
+    try {
+      await API.put(`/desks/${id}/type`, body);
+      if (uiType === "rotative_owner") {
+        const days = [...document.querySelectorAll(".desk-day-chk")].filter((c) => c.checked).map((c) => c.value);
+        await API.put(`/desks/${id}/rotative-days`, { rotative_days: days });
+      }
+      showToast("Tipo atualizado");
+      closeDeskTypeModal();
+      loadDesks();
+    } catch (err) { showToast(err.message, "error"); }
+  }
+
+  async function toggleDesk(id, currentActive) {
+    try { await API.put(`/desks/${id}`, { is_active: currentActive ? 0 : 1 }); loadDesks(); }
+    catch (err) { showToast(err.message, "error"); }
+  }
+
+  async function deleteDesk(id, name) {
+    if (!confirm(`Excluir "${name}"? Todas as reservas desta mesa serão canceladas.`)) return;
+    try { await API.delete(`/desks/${id}`); showToast("Mesa excluída"); loadDesks(); }
+    catch (err) { showToast(err.message, "error"); }
+  }
+
+  function showAddDesk() { document.getElementById("modal-add-desk").classList.add("open"); }
+  function closeAddDeskModal() {
+    document.getElementById("modal-add-desk").classList.remove("open");
+    document.getElementById("new-desk-name").value = "";
+    document.getElementById("new-desk-x").value = "";
+    document.getElementById("new-desk-y").value = "";
+  }
+
+  async function submitAddDesk() {
+    const name = document.getElementById("new-desk-name").value.trim();
+    const pos_x = parseInt(document.getElementById("new-desk-x").value);
+    const pos_y = parseInt(document.getElementById("new-desk-y").value);
+    if (!name || !pos_x || !pos_y) { showToast("Preencha todos os campos", "error"); return; }
+    try {
+      await API.post("/desks", { name, pos_x, pos_y });
+      showToast("Mesa criada");
+      closeAddDeskModal();
+      loadDesks();
+    } catch (err) { showToast(err.message, "error"); }
+  }
+
+  loadDesks();
+</script>
+</body>
+</html>

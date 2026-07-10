@@ -256,7 +256,7 @@ function downloadICS(booking) {
   const nextStr = next.toISOString().split("T")[0].replace(/-/g, "");
   const now = new Date().toISOString().replace(/[-:.]/g, "").slice(0, 15) + "Z";
   const ics = [
-    "BEGIN:VCALENDAR","VERSION:2.0","PRODID:-//Desk Booking//PT",
+    "BEGIN:VCALENDAR","VERSION:2.0","PRODID:-//WorkPlace//PT",
     "CALSCALE:GREGORIAN","METHOD:PUBLISH","BEGIN:VEVENT",
     `UID:booking-${booking.id}@desk-booking`,
     `DTSTAMP:${now}`,
@@ -264,7 +264,7 @@ function downloadICS(booking) {
     `DTEND;VALUE=DATE:${nextStr}`,
     `SUMMARY:Mesa — ${escapeHtml(booking.desk_name)}`,
     "LOCATION:Escritório SP — São Paulo",
-    "DESCRIPTION:Reserva de mesa no sistema Desk Booking.",
+    "DESCRIPTION:Reserva de mesa no sistema WorkPlace.",
     "END:VEVENT","END:VCALENDAR",
   ].join("\r\n");
   const blob = new Blob([ics], { type: "text/calendar; charset=utf-8" });

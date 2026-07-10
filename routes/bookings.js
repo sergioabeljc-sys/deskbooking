@@ -9,9 +9,12 @@ const { getEffectiveRotDays } = require("../utils/spots");
 router.get("/export", authMiddleware, adminMiddleware, (req, res) => {
   const { from, to } = req.query;
   let query = `
-    SELECT b.date, d.name AS desk_name, u.name AS user_name, u.email AS user_email, b.created_at
+    SELECT b.date, d.name AS desk_name,
+           COALESCE(u.name, 'Usuário removido') AS user_name,
+           COALESCE(u.email, '') AS user_email,
+           b.created_at
     FROM bookings b
-    JOIN users u ON b.user_id = u.id
+    LEFT JOIN users u ON b.user_id = u.id
     JOIN desks d ON b.desk_id = d.id
   `;
   const params = [];
@@ -83,9 +86,9 @@ router.get("/stats", authMiddleware, adminMiddleware, (req, res) => {
   const activeDeskCount = db.prepare("SELECT COUNT(*) AS cnt FROM desks WHERE is_active = 1").get().cnt;
 
   const byUser = db.prepare(`
-    SELECT u.name AS user_name, COUNT(*) AS total
+    SELECT COALESCE(u.name, 'Usuário removido') AS user_name, COUNT(*) AS total
     FROM bookings b
-    JOIN users u ON b.user_id = u.id
+    LEFT JOIN users u ON b.user_id = u.id
     WHERE b.date >= date('now', '-30 days')
     GROUP BY b.user_id
     ORDER BY total DESC
@@ -145,10 +148,11 @@ router.get("/", authMiddleware, (req, res) => {
 
   const bookings = db.prepare(`
     SELECT b.id, b.user_id, b.desk_id, b.date,
-           u.name AS user_name, u.email AS user_email,
+           COALESCE(u.name, 'Usuário removido') AS user_name,
+           COALESCE(u.email, '') AS user_email,
            d.name AS desk_name
     FROM bookings b
-    JOIN users u ON b.user_id = u.id
+    LEFT JOIN users u ON b.user_id = u.id
     JOIN desks d ON b.desk_id = d.id
     WHERE b.date = ?
   `).all(date);
@@ -178,9 +182,9 @@ router.get("/all", authMiddleware, adminMiddleware, (req, res) => {
 
   const data = db.prepare(`
     SELECT b.id, b.user_id, b.desk_id, b.date, b.created_at,
-           u.name AS user_name, d.name AS desk_name
+           COALESCE(u.name, 'Usuário removido') AS user_name, d.name AS desk_name
     FROM bookings b
-    JOIN users u ON b.user_id = u.id
+    LEFT JOIN users u ON b.user_id = u.id
     JOIN desks d ON b.desk_id = d.id
     ORDER BY b.date DESC, b.created_at DESC
     LIMIT ? OFFSET ?
@@ -268,9 +272,10 @@ router.post("/", authMiddleware, async (req, res) => {
 
     const booking = db.prepare(`
       SELECT b.id, b.user_id, b.desk_id, b.date,
-             u.name AS user_name, u.email AS user_email, d.name AS desk_name
+             COALESCE(u.name, 'Usuário removido') AS user_name,
+             COALESCE(u.email, '') AS user_email, d.name AS desk_name
       FROM bookings b
-      JOIN users u ON b.user_id = u.id
+      LEFT JOIN users u ON b.user_id = u.id
       JOIN desks d ON b.desk_id = d.id
       WHERE b.id = ?
     `).get(result.lastInsertRowid);
@@ -303,9 +308,10 @@ router.post("/", authMiddleware, async (req, res) => {
 // Cancelar reserva
 router.delete("/:id", authMiddleware, async (req, res) => {
   const booking = db.prepare(`
-    SELECT b.*, u.name AS user_name, u.email AS user_email, d.name AS desk_name
+    SELECT b.*, COALESCE(u.name, 'Usuário removido') AS user_name,
+           COALESCE(u.email, '') AS user_email, d.name AS desk_name
     FROM bookings b
-    JOIN users u ON b.user_id = u.id
+    LEFT JOIN users u ON b.user_id = u.id
     JOIN desks d ON b.desk_id = d.id
     WHERE b.id = ?
   `).get(req.params.id);
@@ -377,8 +383,9 @@ router.post("/admin", authMiddleware, adminMiddleware, async (req, res) => {
     const result = db.prepare("INSERT INTO bookings (user_id, desk_id, date) VALUES (?, ?, ?)").run(user_id, deskIdInt, date);
     const booking = db.prepare(`
       SELECT b.id, b.user_id, b.desk_id, b.date,
-             u.name AS user_name, u.email AS user_email, d.name AS desk_name
-      FROM bookings b JOIN users u ON b.user_id = u.id JOIN desks d ON b.desk_id = d.id
+             COALESCE(u.name, 'Usuário removido') AS user_name,
+             COALESCE(u.email, '') AS user_email, d.name AS desk_name
+      FROM bookings b LEFT JOIN users u ON b.user_id = u.id JOIN desks d ON b.desk_id = d.id
       WHERE b.id = ?
     `).get(result.lastInsertRowid);
 

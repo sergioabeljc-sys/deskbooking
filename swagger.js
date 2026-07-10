@@ -1,7 +1,7 @@
 const swaggerSpec = {
   openapi: "3.0.0",
   info: {
-    title: "Desk Booking API",
+    title: "WorkPlace API",
     version: "1.0.0",
     description: "API para o sistema de agendamento de mesas de escritório.",
   },
