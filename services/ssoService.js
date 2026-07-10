@@ -1,7 +1,8 @@
 const crypto = require("crypto");
+const db = require("../db");
 const { companyFromEmail } = require("../utils/validate");
 
-// ─── Configuração por tenant ──────────────────────────────────────────────────
+// ─── Configuração por tenant ──────────���───────────────────────────────────────
 
 const TENANTS = {
   tenda: {
@@ -16,22 +17,10 @@ const TENANTS = {
   },
 };
 
-// ─── State store (anti-CSRF) ──────────────────────────────────────────────────
-// Map<state, { company, expiresAt }>
-const stateStore = new Map();
-const STATE_TTL_MS = 10 * 60 * 1000; // 10 minutos
+const STATE_TTL_MS    = 10 * 60 * 1000; // 10 minutos
+const SSO_CODE_TTL_MS =  5 * 60 * 1000; //  5 minutos
 
-// Limpeza periódica de states expirados (não bloqueia o processo)
-if (process.env.NODE_ENV !== "test") {
-  setInterval(() => {
-    const now = Date.now();
-    for (const [key, val] of stateStore) {
-      if (val.expiresAt < now) stateStore.delete(key);
-    }
-  }, 60_000).unref();
-}
-
-// ─── Helpers ──────────────────────────────────────────────────────────────────
+// ─── Helpers ���───────────────────────────��─────────────────────────────────────
 
 function tenantConfig(company) {
   return TENANTS[company] || null;
@@ -42,10 +31,13 @@ function isConfigured(company) {
   return !!(cfg?.clientId && cfg?.clientSecret && cfg?.tenantId);
 }
 
+// ─── State store — persistido em SQLite (#16) ─��───────────────────────────────
+
 function buildAuthUrl(company, redirectUri) {
   const cfg = tenantConfig(company);
   const state = crypto.randomBytes(32).toString("hex");
-  stateStore.set(state, { company, expiresAt: Date.now() + STATE_TTL_MS });
+  const expiresAt = new Date(Date.now() + STATE_TTL_MS).toISOString();
+  db.prepare("INSERT INTO sso_states (state, company, expires_at) VALUES (?, ?, ?)").run(state, company, expiresAt);
 
   const params = new URLSearchParams({
     client_id: cfg.clientId,
@@ -63,12 +55,39 @@ function buildAuthUrl(company, redirectUri) {
 }
 
 function consumeState(state) {
-  const entry = stateStore.get(state);
+  const entry = db.prepare("SELECT company, expires_at FROM sso_states WHERE state = ?").get(state);
   if (!entry) return null;
-  stateStore.delete(state);
-  if (entry.expiresAt < Date.now()) return null;
-  return entry;
+  db.prepare("DELETE FROM sso_states WHERE state = ?").run(state);
+  if (new Date(entry.expires_at) < new Date()) return null;
+  return { company: entry.company };
 }
+
+// ─── SSO code store — troca segura pós-callback (#4, #16) ────────────────────
+
+function storeSsoCode(token, refreshToken, user) {
+  const code = crypto.randomBytes(32).toString("hex");
+  const expiresAt = new Date(Date.now() + SSO_CODE_TTL_MS).toISOString();
+  db.prepare(
+    "INSERT INTO sso_codes (code, token, refresh_token, user_json, expires_at) VALUES (?, ?, ?, ?, ?)"
+  ).run(code, token, refreshToken, JSON.stringify(user), expiresAt);
+  return code;
+}
+
+function consumeSsoCode(code) {
+  const entry = db.prepare(
+    "SELECT token, refresh_token, user_json, expires_at FROM sso_codes WHERE code = ?"
+  ).get(code);
+  if (!entry) return null;
+  db.prepare("DELETE FROM sso_codes WHERE code = ?").run(code);
+  if (new Date(entry.expires_at) < new Date()) return null;
+  return {
+    token: entry.token,
+    refreshToken: entry.refresh_token,
+    user: JSON.parse(entry.user_json),
+  };
+}
+
+// ─── Token exchange com Azure AD ─────────────────────────────────────────────
 
 async function exchangeCode(company, code, redirectUri) {
   const cfg = tenantConfig(company);
@@ -100,7 +119,7 @@ async function exchangeCode(company, code, redirectUri) {
 /**
  * Decodifica id_token (sem verificar assinatura — token veio diretamente do
  * endpoint HTTPS do Azure AD com nosso client_secret, portanto confiável).
- * Valida iss, aud e exp.
+ * Valida iss, aud, exp e nbf (#5).
  */
 function decodeAndValidateIdToken(idToken, company) {
   const parts = idToken.split(".");
@@ -112,8 +131,13 @@ function decodeAndValidateIdToken(idToken, company) {
   const now = Math.floor(Date.now() / 1000);
 
   if (payload.exp && payload.exp < now) throw new Error("id_token expirado");
-  if (payload.aud && payload.aud !== cfg.clientId)
-    throw new Error("id_token: aud inválido");
+  if (payload.nbf && payload.nbf > now + 60) throw new Error("id_token ainda não válido");
+  if (payload.aud && payload.aud !== cfg.clientId) throw new Error("id_token: aud inválido");
+
+  const expectedIss = `https://login.microsoftonline.com/${cfg.tenantId}/v2.0`;
+  if (payload.iss && payload.iss !== expectedIss) {
+    throw new Error(`id_token: iss inválido (esperado ${expectedIss})`);
+  }
 
   return payload;
 }
@@ -125,5 +149,6 @@ module.exports = {
   consumeState,
   exchangeCode,
   decodeAndValidateIdToken,
-  _stateStore: stateStore,
+  storeSsoCode,
+  consumeSsoCode,
 };

@@ -144,6 +144,42 @@ router.put("/departments/:id", (req, res) => {
   res.json({ ok: true });
 });
 
+// Cria novo departamento
+router.post("/departments", (req, res) => {
+  const name = (req.body.name || "").trim();
+  if (!name) return res.status(400).json({ error: "Nome é obrigatório." });
+
+  try {
+    const result = db
+      .prepare("INSERT INTO departments (name, can_book_spot, updated_by) VALUES (?, ?, ?)")
+      .run(name, req.body.can_book_spot ? 1 : 0, req.user.id);
+    const dept = db.prepare("SELECT id, name, can_book_spot, updated_at FROM departments WHERE id = ?").get(result.lastInsertRowid);
+    auditLog(req.user.id, req.user.name, "create_department", "department", dept.id, { name: dept.name });
+    res.status(201).json(dept);
+  } catch (e) {
+    if (e.message.includes("UNIQUE")) return res.status(409).json({ error: "Departamento já existe." });
+    res.status(500).json({ error: "Erro interno." });
+  }
+});
+
+// Remove departamento
+router.delete("/departments/:id", (req, res) => {
+  const deptId = parseInt(req.params.id, 10);
+  const dept = db.prepare("SELECT id, name FROM departments WHERE id = ?").get(deptId);
+  if (!dept) return res.status(404).json({ error: "Departamento não encontrado." });
+
+  const linkedCount = db.prepare("SELECT COUNT(*) as cnt FROM users WHERE department = ?").get(dept.name).cnt;
+  if (linkedCount > 0) {
+    return res.status(409).json({
+      error: `Não é possível remover: ${linkedCount} usuário(s) vinculado(s) a este departamento. Reatribua-os antes de excluir.`,
+    });
+  }
+
+  db.prepare("DELETE FROM departments WHERE id = ?").run(deptId);
+  auditLog(req.user.id, req.user.name, "delete_department", "department", deptId, { name: dept.name });
+  res.json({ ok: true });
+});
+
 // ─── Capacidade de Vagas (Story 4.3) ─────────────────────────────────────────
 
 const VALID_DAYS = ["sun", "mon", "tue", "wed", "thu", "fri", "sat"];

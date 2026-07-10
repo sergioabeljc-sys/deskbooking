@@ -9,7 +9,7 @@ const { validateEmail, validateName, validatePassword } = require("../utils/vali
 // Listar todos os usuários (admin)
 router.get("/", authMiddleware, adminMiddleware, (req, res) => {
   const users = db
-    .prepare("SELECT id, name, email, is_admin, is_ti, weekly_office_days, created_at FROM users ORDER BY created_at ASC")
+    .prepare("SELECT id, name, email, is_admin, is_ti, weekly_office_days, company, department, created_at FROM users ORDER BY name ASC")
     .all();
   res.json(users);
 });
@@ -41,6 +41,29 @@ router.post("/", authMiddleware, adminMiddleware, (req, res) => {
       return res.status(409).json({ error: "E-mail já cadastrado" });
     res.status(500).json({ error: "Erro interno" });
   }
+});
+
+// Editar dados do usuário: nome, empresa, departamento (admin)
+router.put("/:id", authMiddleware, adminMiddleware, (req, res) => {
+  const user = db.prepare("SELECT * FROM users WHERE id = ?").get(req.params.id);
+  if (!user) return res.status(404).json({ error: "Usuário não encontrado" });
+
+  const { name, company, department } = req.body;
+  if (name) {
+    const nameErr = validateName(name);
+    if (nameErr) return res.status(400).json({ error: nameErr });
+  }
+
+  db.prepare("UPDATE users SET name = ?, company = ?, department = ? WHERE id = ?")
+    .run(name ? name.trim() : user.name, company || null, department || null, user.id);
+
+  const updated = db
+    .prepare("SELECT id, name, email, is_admin, is_ti, weekly_office_days, company, department FROM users WHERE id = ?")
+    .get(user.id);
+  auditLog(req.user.id, req.user.name, "edit_user", "user", user.id, {
+    name: updated.name, company: updated.company, department: updated.department,
+  });
+  res.json(updated);
 });
 
 // Alterar limite semanal de dias no escritório (admin)
@@ -93,12 +116,18 @@ router.put("/:id/toggle-admin", authMiddleware, adminMiddleware, (req, res) => {
 
 // Remover usuário (admin)
 router.delete("/:id", authMiddleware, adminMiddleware, (req, res) => {
-  if (parseInt(req.params.id, 10) === req.user.id)
+  const userId = parseInt(req.params.id, 10);
+  if (userId === req.user.id)
     return res.status(400).json({ error: "Você não pode excluir sua própria conta" });
 
-  const target = db.prepare("SELECT name, email FROM users WHERE id = ?").get(req.params.id);
-  db.prepare("DELETE FROM users WHERE id = ?").run(req.params.id);
-  if (target) auditLog(req.user.id, req.user.name, "delete_user", "user", parseInt(req.params.id, 10), { name: target.name, email: target.email });
+  const target = db.prepare("SELECT name, email FROM users WHERE id = ?").get(userId);
+  if (!target) return res.status(404).json({ error: "Usuário não encontrado" });
+
+  // Libera mesas cujo dono está sendo excluído — evita owner_id órfão (#14)
+  db.prepare("UPDATE desks SET owner_id = NULL WHERE owner_id = ?").run(userId);
+
+  db.prepare("DELETE FROM users WHERE id = ?").run(userId);
+  auditLog(req.user.id, req.user.name, "delete_user", "user", userId, { name: target.name, email: target.email });
   res.json({ ok: true });
 });
 

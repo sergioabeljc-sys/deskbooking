@@ -57,8 +57,8 @@ describe("Templates", () => {
     const { subject, text } = TEMPLATES["booking-confirmed"]({
       type: "spot",
       date: "2026-06-25",
-      startTime: "09:00",
-      endTime: "18:00",
+      start_time: "09:00",
+      end_time: "18:00",
     });
     expect(subject).toContain("confirmada");
     expect(text).toContain("2026-06-25");
@@ -69,8 +69,8 @@ describe("Templates", () => {
     const { subject, text, html } = TEMPLATES["booking-confirmed"]({
       type: "room",
       date: "2026-06-25",
-      startTime: "14:00",
-      endTime: "15:00",
+      start_time: "14:00",
+      end_time: "15:00",
       roomName: "Sala Alpha",
     });
     expect(subject).toContain("Sala Alpha");
@@ -82,8 +82,8 @@ describe("Templates", () => {
     const { subject, text } = TEMPLATES["booking-cancelled"]({
       type: "spot",
       date: "2026-06-25",
-      startTime: "08:00",
-      endTime: "12:00",
+      start_time: "08:00",
+      end_time: "12:00",
     });
     expect(subject).toContain("cancelada");
     expect(text).toContain("2026-06-25");
@@ -99,8 +99,8 @@ describe("sendEmail()", () => {
     await sendEmail("user@tendaatacado.com.br", "booking-confirmed", {
       type: "spot",
       date: "2026-06-25",
-      startTime: "09:00",
-      endTime: "18:00",
+      start_time: "09:00",
+      end_time: "18:00",
     });
 
     // sendEmail é fire-and-forget — aguarda um tick para o attemptSend rodar
@@ -121,8 +121,8 @@ describe("sendEmail()", () => {
       sendEmail("user@test.com", "booking-confirmed", {
         type: "spot",
         date: "2026-06-25",
-        startTime: "09:00",
-        endTime: "18:00",
+        start_time: "09:00",
+        end_time: "18:00",
       })
     ).resolves.not.toThrow();
 
@@ -135,8 +135,8 @@ describe("sendEmail()", () => {
     await sendEmail("user@test.com", "booking-cancelled", {
       type: "spot",
       date: "2026-06-25",
-      startTime: "08:00",
-      endTime: "12:00",
+      start_time: "08:00",
+      end_time: "12:00",
     });
 
     await new Promise((r) => setImmediate(r));
@@ -196,8 +196,8 @@ describe("sendEmail() sem SMTP configurado", () => {
       sendEmail("user@test.com", "booking-confirmed", {
         type: "spot",
         date: "2026-06-25",
-        startTime: "09:00",
-        endTime: "18:00",
+        start_time: "09:00",
+        end_time: "18:00",
       })
     ).resolves.not.toThrow();
 

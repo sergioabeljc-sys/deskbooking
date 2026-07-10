@@ -5,7 +5,7 @@ const { authMiddleware, adminMiddleware } = require("../middleware/auth");
 const { requireRole, requireOwnerOrAdmin } = require("../middleware/rbac");
 const { validateName, validatePosInt } = require("../utils/validate");
 const { auditLog } = require("../utils/audit");
-const { getAvailableSpots, DOW_NAMES } = require("../utils/spots");
+const { getAvailableSpots, getEffectiveRotDays, DOW_NAMES } = require("../utils/spots");
 
 const VALID_DAYS = ["mon", "tue", "wed", "thu", "fri"];
 
@@ -112,7 +112,7 @@ router.put("/:id/type", authMiddleware, adminMiddleware, (req, res) => {
 
   db.prepare(
     "UPDATE desks SET type = ?, owner_id = ?, rotative_days = ? WHERE id = ?"
-  ).run(type, type === "fixed" ? owner_id : null, newRotativeDays, deskId);
+  ).run(type, owner_id ?? null, newRotativeDays, deskId);
 
   auditLog(req.user.id, req.user.name, "update_desk_type", "desk", deskId, {
     type,
@@ -139,7 +139,7 @@ router.put(
     const deskId = parseInt(req.params.id, 10);
     const { rotative_days } = req.body;
 
-    const desk = db.prepare("SELECT * FROM desks WHERE id = ?").get(deskId);
+    let desk = db.prepare("SELECT * FROM desks WHERE id = ?").get(deskId);
     if (!desk) return res.status(404).json({ error: "Mesa não encontrada." });
 
     if (desk.type !== "rotative") {
@@ -157,67 +157,72 @@ router.put(
       });
     }
 
-    const currentDays = JSON.parse(desk.rotative_days || "[]");
-    const removedDays = currentDays.filter((d) => !rotative_days.includes(d));
+    const today = new Date();
+    const todayStr = today.toISOString().slice(0, 10);
 
-    // AC3: para cada dia removido, verifica se vagas disponíveis ficariam <= 0
-    for (const day of removedDays) {
-      // Simula remoção: conta rotativas do dia excluindo esta mesa
-      const remainingRotative = db
-        .prepare(
-          `SELECT COUNT(*) AS cnt FROM desks
-           WHERE id != ? AND type = 'rotative' AND EXISTS (
-             SELECT 1 FROM json_each(rotative_days) WHERE value = ?
-           )`
-        )
-        .get(deskId, day).cnt;
-
-      // Calcula capacidade admin para o dia (usa day_of_week, não data específica)
-      const dowCap = db
-        .prepare("SELECT capacity FROM spot_capacity WHERE day_of_week = ? ORDER BY id DESC LIMIT 1")
-        .get(day);
-      const adminCap = dowCap?.capacity ?? null;
-
-      const newTotal = adminCap !== null ? Math.min(adminCap, remainingRotative) : remainingRotative;
-
-      // Conta bookings confirmados futuros que dependem de vagas neste dia
-      // Mapeamos o day para número de dia da semana SQLite (0=dom, 1=seg, ...)
-      const dowIndex = DOW_NAMES.indexOf(day);
-      const futureBookings = db
-        .prepare(
-          `SELECT COUNT(*) AS cnt FROM spot_bookings
-           WHERE status = 'confirmed' AND date >= date('now')
-           AND CAST(strftime('%w', date) AS INTEGER) = ?`
-        )
-        .get(dowIndex).cnt;
-
-      if (newTotal - futureBookings <= 0 && futureBookings > 0) {
-        return res.status(409).json({
-          error: `Não é possível remover ${day}: não haverá vagas disponíveis nesse dia (${futureBookings} reservas existentes).`,
-          day,
-          future_bookings: futureBookings,
-          remaining_spots: Math.max(0, newTotal),
-        });
-      }
+    // Promoção lazy: se há config pendente cuja vigência já chegou, aplica antes de qualquer coisa
+    if (desk.rotative_days_next && desk.rotative_days_next_from && todayStr >= desk.rotative_days_next_from) {
+      db.prepare(
+        "UPDATE desks SET rotative_days = ?, rotative_days_next = NULL, rotative_days_next_from = NULL WHERE id = ?"
+      ).run(desk.rotative_days_next, deskId);
+      desk = db.prepare("SELECT * FROM desks WHERE id = ?").get(deskId);
     }
 
-    // Atualiza (remove duplicatas e ordena)
+    const DAY_LABELS = { mon: "segunda", tue: "terça", wed: "quarta", thu: "quinta", fri: "sexta" };
     const uniqueDays = [...new Set(rotative_days)].sort(
       (a, b) => VALID_DAYS.indexOf(a) - VALID_DAYS.indexOf(b)
     );
 
-    db.prepare("UPDATE desks SET rotative_days = ? WHERE id = ?").run(
-      JSON.stringify(uniqueDays),
-      deskId
-    );
+    // A mudança sempre entra em vigor na próxima semana — para todos, inclusive admin
+    const dow = today.getDay(); // 0=dom, 6=sab
+    if (dow === 0 || dow === 6) {
+      return res.status(409).json({
+        error: "Alterações na programação só podem ser feitas de segunda a sexta-feira.",
+      });
+    }
+
+    // Calcula a segunda-feira da próxima semana
+    const daysToNextMonday = 8 - dow; // seg→7, ter→6, ..., sex→3
+    const nextMonday = new Date(today);
+    nextMonday.setDate(today.getDate() + daysToNextMonday);
+    const nextMondayStr = nextMonday.toISOString().slice(0, 10);
+
+    // Dias que estão saindo do pool (passando a ser fixos para o dono)
+    const currentDays = getEffectiveRotDays(desk, todayStr);
+    const removedDays = currentDays.filter((d) => !uniqueDays.includes(d));
+
+    // Para cada dia removido, verifica disponibilidade na próxima semana
+    for (const day of removedDays) {
+      const targetDow = VALID_DAYS.indexOf(day) + 1; // seg=1 ... sex=5
+      const nextOccurrence = new Date(nextMonday);
+      nextOccurrence.setDate(nextMonday.getDate() + (targetDow - 1));
+      const nextDateStr = nextOccurrence.toISOString().slice(0, 10);
+
+      const avail = getAvailableSpots(nextDateStr);
+      if (avail.available < 1) {
+        return res.status(409).json({
+          error: `O escritório está lotado na ${DAY_LABELS[day]}-feira da próxima semana. Não é possível tornar este dia fixo.`,
+          day,
+          available: avail.available,
+        });
+      }
+    }
+
+    // Salva como configuração pendente para a próxima semana
+    db.prepare(
+      "UPDATE desks SET rotative_days_next = ?, rotative_days_next_from = ? WHERE id = ?"
+    ).run(JSON.stringify(uniqueDays), nextMondayStr, deskId);
 
     auditLog(req.user.id, req.user.name, "update_rotative_days", "desk", deskId, {
-      rotative_days: uniqueDays,
+      rotative_days_next: uniqueDays,
+      rotative_days_next_from: nextMondayStr,
     });
 
     res.json({
       id: deskId,
-      rotative_days: uniqueDays,
+      rotative_days: currentDays,
+      rotative_days_next: uniqueDays,
+      rotative_days_next_from: nextMondayStr,
     });
   }
 );

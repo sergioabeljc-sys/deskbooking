@@ -7,7 +7,15 @@ const app = require("../server");
 
 let adminToken, userToken, deskId;
 const today = new Date().toISOString().split("T")[0];
-const tomorrow = new Date(Date.now() + 86400000).toISOString().split("T")[0];
+// Use next weekday to avoid weekend booking rejection
+function nextWeekday() {
+  const d = new Date(Date.now() + 86400000);
+  const dow = d.getUTCDay();
+  if (dow === 6) d.setUTCDate(d.getUTCDate() + 2); // Sat → Mon
+  if (dow === 0) d.setUTCDate(d.getUTCDate() + 1); // Sun → Mon
+  return d.toISOString().split("T")[0];
+}
+const tomorrow = nextWeekday();
 
 beforeAll(async () => {
   const admin = await request(app).post("/api/auth/register").send({

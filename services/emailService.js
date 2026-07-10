@@ -27,33 +27,33 @@ const FROM = process.env.SMTP_FROM || process.env.SMTP_USER || "noreply@desk-boo
 
 const TEMPLATES = {
   "access-request": (data) => ({
-    subject: "Novo pedido de acesso — Desk Booking",
+    subject: "Novo pedido de acesso — WorkPlace",
     text: `Novo pedido de acesso recebido.\n\nE-mail: ${data.email}\nEmpresa: ${data.company}\n\nAcesse o painel admin para aprovar ou recusar.`,
     html: `<p>Novo pedido de acesso recebido.</p><ul><li><b>E-mail:</b> ${data.email}</li><li><b>Empresa:</b> ${data.company}</li></ul><p>Acesse o painel admin para aprovar ou recusar.</p>`,
   }),
 
   "access-approved": (data) => ({
-    subject: "Seu acesso ao Desk Booking foi aprovado",
-    text: `Olá, ${data.name || data.email}!\n\nSeu acesso ao Desk Booking foi aprovado. Faça login com sua conta Microsoft em: ${data.loginUrl || "https://desk-booking"}.`,
-    html: `<p>Olá, <b>${data.name || data.email}</b>!</p><p>Seu acesso ao Desk Booking foi aprovado.</p><p>Faça login com sua conta Microsoft para começar a reservar.</p>`,
+    subject: "Seu acesso ao WorkPlace foi aprovado",
+    text: `Olá, ${data.name || data.email}!\n\nSeu acesso ao WorkPlace foi aprovado. Faça login com sua conta Microsoft em: ${data.loginUrl || "https://desk-booking"}.`,
+    html: `<p>Olá, <b>${data.name || data.email}</b>!</p><p>Seu acesso ao WorkPlace foi aprovado.</p><p>Faça login com sua conta Microsoft para começar a reservar.</p>`,
   }),
 
   "access-refused": (data) => ({
-    subject: "Pedido de acesso ao Desk Booking não aprovado",
-    text: `Olá,\n\nSeu pedido de acesso ao Desk Booking (${data.email}) não foi aprovado. Entre em contato com o administrador para mais informações.`,
-    html: `<p>Olá,</p><p>Seu pedido de acesso ao Desk Booking (<b>${data.email}</b>) não foi aprovado.</p><p>Entre em contato com o administrador para mais informações.</p>`,
+    subject: "Pedido de acesso ao WorkPlace não aprovado",
+    text: `Olá,\n\nSeu pedido de acesso ao WorkPlace (${data.email}) não foi aprovado. Entre em contato com o administrador para mais informações.`,
+    html: `<p>Olá,</p><p>Seu pedido de acesso ao WorkPlace (<b>${data.email}</b>) não foi aprovado.</p><p>Entre em contato com o administrador para mais informações.</p>`,
   }),
 
   "booking-confirmed": (data) => ({
     subject: `Reserva confirmada — ${data.type === "room" ? `Sala ${data.roomName}` : "Vaga no escritório"}`,
-    text: `Sua reserva foi confirmada!\n\nData: ${data.date}\nHorário: ${data.startTime} às ${data.endTime}${data.roomName ? `\nSala: ${data.roomName}` : ""}`,
-    html: `<p>Sua reserva foi confirmada!</p><ul><li><b>Data:</b> ${data.date}</li><li><b>Horário:</b> ${data.startTime} às ${data.endTime}</li>${data.roomName ? `<li><b>Sala:</b> ${data.roomName}</li>` : ""}</ul>`,
+    text: `Sua reserva foi confirmada!\n\nData: ${data.date}\nHorário: ${data.start_time} às ${data.end_time}${data.roomName ? `\nSala: ${data.roomName}` : ""}`,
+    html: `<p>Sua reserva foi confirmada!</p><ul><li><b>Data:</b> ${data.date}</li><li><b>Horário:</b> ${data.start_time} às ${data.end_time}</li>${data.roomName ? `<li><b>Sala:</b> ${data.roomName}</li>` : ""}</ul>`,
   }),
 
   "booking-cancelled": (data) => ({
     subject: `Reserva cancelada — ${data.type === "room" ? `Sala ${data.roomName}` : "Vaga no escritório"}`,
-    text: `Sua reserva foi cancelada.\n\nData: ${data.date}\nHorário: ${data.startTime} às ${data.endTime}${data.roomName ? `\nSala: ${data.roomName}` : ""}`,
-    html: `<p>Sua reserva foi cancelada.</p><ul><li><b>Data:</b> ${data.date}</li><li><b>Horário:</b> ${data.startTime} às ${data.endTime}</li>${data.roomName ? `<li><b>Sala:</b> ${data.roomName}</li>` : ""}</ul>`,
+    text: `Sua reserva foi cancelada.\n\nData: ${data.date}\nHorário: ${data.start_time} às ${data.end_time}${data.roomName ? `\nSala: ${data.roomName}` : ""}`,
+    html: `<p>Sua reserva foi cancelada.</p><ul><li><b>Data:</b> ${data.date}</li><li><b>Horário:</b> ${data.start_time} às ${data.end_time}</li>${data.roomName ? `<li><b>Sala:</b> ${data.roomName}</li>` : ""}</ul>`,
   }),
 };
 

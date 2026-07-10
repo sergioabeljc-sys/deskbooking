@@ -1,11 +1,11 @@
 const express = require("express");
 const router = express.Router();
 const db = require("../db");
-const { authMiddleware } = require("../middleware/auth");
+const { authMiddleware, adminMiddleware } = require("../middleware/auth");
 const { requireDepartmentAccess } = require("../middleware/rbac");
 const { sendEmail } = require("../services/emailService");
 const { auditLog } = require("../utils/audit");
-const { getAvailableSpots } = require("../utils/spots");
+const { getAvailableSpots, getAutoPresences, getEffectiveRotDays, DOW_NAMES } = require("../utils/spots");
 
 // ─── Story 5.1: Visão Semanal de Presenças ───────────────────────────────────
 
@@ -43,9 +43,11 @@ router.get("/week", authMiddleware, (req, res) => {
   const bookings = db
     .prepare(
       `SELECT sb.date, sb.start_time, sb.end_time,
-              u.name, u.email, u.company
+              u.name, u.email, u.company,
+              CASE WHEN d.id IS NOT NULL THEN 1 ELSE 0 END AS is_desk_owner
        FROM spot_bookings sb
        JOIN users u ON u.id = sb.user_id
+       LEFT JOIN desks d ON d.owner_id = u.id AND d.is_active = 1 AND d.type = 'fixed'
        WHERE sb.date IN (${placeholders}) AND sb.status = 'confirmed'
        ORDER BY sb.date ASC, sb.start_time ASC, u.name ASC`
     )
@@ -64,8 +66,27 @@ router.get("/week", authMiddleware, (req, res) => {
         company: b.company,
         start_time: b.start_time,
         end_time: b.end_time,
+        auto_presence: false,
+        is_desk_owner: b.is_desk_owner === 1,
       });
     }
+  }
+
+  // Inclui presenças automáticas (donos de mesa fora do pool)
+  for (const day of days) {
+    const auto = getAutoPresences(day);
+    for (const p of auto) {
+      week[day].push({
+        name: p.name,
+        email: p.email,
+        company: p.company,
+        desk_name: p.desk_name,
+        start_time: null,
+        end_time: null,
+        auto_presence: true,
+      });
+    }
+    week[day].sort((a, b) => a.name.localeCompare(b.name));
   }
 
   res.json({ start, days, week });
@@ -135,6 +156,21 @@ router.post("/bookings", authMiddleware, requireDepartmentAccess(), (req, res) =
       continue;
     }
 
+    const dow = new Date(date + "T12:00:00Z").getUTCDay();
+    if (dow === 0 || dow === 6) {
+      errors.push({ date, error: "Reservas não são permitidas em finais de semana." });
+      continue;
+    }
+
+    // Bloqueia reserva no próprio dia após as 18h horário de Brasília (UTC-3, DST abolido em 2019)
+    if (date === today) {
+      const nowBrazilHour = (new Date().getUTCHours() - 3 + 24) % 24;
+      if (nowBrazilHour >= 18) {
+        errors.push({ date, error: "Reservas para hoje não são permitidas após as 18h." });
+        continue;
+      }
+    }
+
     if (date > maxDate) {
       errors.push({ date, error: "Antecedência máxima de 30 dias." });
       continue;
@@ -152,6 +188,26 @@ router.post("/bookings", authMiddleware, requireDepartmentAccess(), (req, res) =
       continue;
     }
 
+    // Bloqueia reserva de vaga para donos de mesa disponível neste dia
+    // Usa getEffectiveRotDays para considerar configuração pendente (rotative_days_next)
+    const dowCode = DOW_NAMES[dow];
+    const ownedDesk = db
+      .prepare("SELECT id, name, type, rotative_days, rotative_days_next, rotative_days_next_from FROM desks WHERE owner_id = ? AND is_active = 1")
+      .get(req.user.id);
+    if (ownedDesk) {
+      if (ownedDesk.type === "fixed") {
+        errors.push({ date, error: "Você possui mesa fixa e não precisa reservar vaga." });
+        continue;
+      }
+      if (ownedDesk.type === "rotative") {
+        const effectiveDays = getEffectiveRotDays(ownedDesk, date);
+        if (!effectiveDays.includes(dowCode)) {
+          errors.push({ date, error: `Sua mesa está reservada para você neste dia — reserva de vaga não é necessária.` });
+          continue;
+        }
+      }
+    }
+
     // Verifica disponibilidade
     const avail = getAvailableSpots(date);
     if (avail.available <= 0) {
@@ -165,6 +221,22 @@ router.post("/bookings", authMiddleware, requireDepartmentAccess(), (req, res) =
         // Re-verifica dentro da transação
         const current = getAvailableSpots(date);
         if (current.available <= 0) throw { type: "NO_SPOTS" };
+
+        // Se existe reserva cancelada para este usuário/data, reutiliza o registro
+        const cancelled = db
+          .prepare(
+            "SELECT id FROM spot_bookings WHERE user_id = ? AND date = ? AND status = 'cancelled'"
+          )
+          .get(req.user.id, date);
+
+        if (cancelled) {
+          db.prepare(
+            `UPDATE spot_bookings SET start_time = ?, end_time = ?, status = 'confirmed',
+             cancelled_by = NULL, cancelled_at = NULL
+             WHERE id = ?`
+          ).run(start_time, end_time, cancelled.id);
+          return cancelled.id;
+        }
 
         const result = db
           .prepare(
@@ -212,6 +284,47 @@ router.post("/bookings", authMiddleware, requireDepartmentAccess(), (req, res) =
   res.status(201).json({ created, errors });
 });
 
+// GET /api/spots/my-bookings?start=YYYY-MM-DD — reservas do usuário logado
+router.get("/my-bookings", authMiddleware, (req, res) => {
+  const start = req.query.start || new Date().toISOString().slice(0, 10);
+  const end = req.query.end || new Date(Date.now() + 60 * 24 * 60 * 60 * 1000).toISOString().slice(0, 10);
+  const bookings = db
+    .prepare(
+      `SELECT id, date, start_time, end_time, status FROM spot_bookings
+       WHERE user_id = ? AND date >= ? AND date <= ? AND status = 'confirmed'
+       ORDER BY date ASC`
+    )
+    .all(req.user.id, start, end);
+  res.json(bookings);
+});
+
+// GET /api/spots/bookings/all — admin: todas as reservas de vaga paginadas
+router.get("/bookings/all", authMiddleware, adminMiddleware, (req, res) => {
+  const page  = Math.max(1, parseInt(req.query.page,  10) || 1);
+  const limit = Math.min(200, Math.max(1, parseInt(req.query.limit, 10) || 50));
+  const offset = (page - 1) * limit;
+  const from = req.query.from || null;
+  const to   = req.query.to   || null;
+
+  let where = "WHERE sb.status = 'confirmed'";
+  const params = [];
+  if (from) { where += " AND sb.date >= ?"; params.push(from); }
+  if (to)   { where += " AND sb.date <= ?"; params.push(to); }
+
+  const total = db.prepare(`SELECT COUNT(*) AS cnt FROM spot_bookings sb ${where}`).get(...params).cnt;
+  const data  = db.prepare(`
+    SELECT sb.id, sb.date, sb.start_time, sb.end_time, sb.status, sb.created_at,
+           u.name AS user_name, u.email AS user_email, u.company
+    FROM spot_bookings sb
+    JOIN users u ON u.id = sb.user_id
+    ${where}
+    ORDER BY sb.date DESC, sb.start_time ASC
+    LIMIT ? OFFSET ?
+  `).all(...params, limit, offset);
+
+  res.json({ data, total, page, pages: Math.ceil(total / limit) });
+});
+
 // DELETE /api/spots/bookings/:id — cancela vaga
 router.delete("/bookings/:id", authMiddleware, (req, res) => {
   const bookingId = parseInt(req.params.id, 10);
@@ -238,14 +351,30 @@ router.delete("/bookings/:id", authMiddleware, (req, res) => {
     return res.status(403).json({ error: "Você só pode cancelar suas próprias reservas." });
   }
 
-  // Usuário comum: mínimo 24h de antecedência
-  if (!isAdmin) {
-    const bookingDateTime = new Date(`${booking.date}T${booking.start_time}:00`);
-    const diffHours = (bookingDateTime - new Date()) / (1000 * 60 * 60);
-    if (diffHours < 24) {
-      return res.status(400).json({
-        error: "Reservas só podem ser canceladas com no mínimo 24h de antecedência.",
-      });
+  const today = new Date().toISOString().slice(0, 10);
+  // Horário de Brasília (UTC-3, DST abolido em 2019)
+  const nowBrazilHour = (new Date().getUTCHours() - 3 + 24) % 24;
+
+  if (isAdmin) {
+    // Admin não pode cancelar reservas de dias anteriores
+    if (booking.date < today) {
+      return res.status(400).json({ error: "Não é possível cancelar reservas de dias anteriores." });
+    }
+    // Admin não pode cancelar reservas do dia atual após as 18h
+    if (booking.date === today && nowBrazilHour >= 18) {
+      return res.status(400).json({ error: "Não é possível cancelar reservas do dia atual após as 18h." });
+    }
+  } else {
+    // Usuário comum: regra de 24h
+    const isSelfCancel = booking.user_id === req.user.id;
+    if (isSelfCancel) {
+      const bookingDateTime = new Date(`${booking.date}T${booking.start_time}:00`);
+      const diffHours = (bookingDateTime - new Date()) / (1000 * 60 * 60);
+      if (diffHours < 24) {
+        return res.status(400).json({
+          error: "Reservas só podem ser canceladas com no mínimo 24h de antecedência.",
+        });
+      }
     }
   }
 

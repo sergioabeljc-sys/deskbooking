@@ -123,7 +123,22 @@ if (fs.existsSync(migrationsDir)) {
     }
   }
 }
-// ─────────────────────────────────────────────────────────────────────────────
+// ─────────────────���───────────────────────────────────────────────────────────
+
+// Purga de tokens e estados expirados (#15, #16)
+// Executa uma vez no boot para limpar acúmulo e depois a cada 24h.
+function _purgeExpired() {
+  const rt = db.prepare("DELETE FROM refresh_tokens WHERE expires_at < datetime('now')").run();
+  const ss = db.prepare("DELETE FROM sso_states WHERE expires_at < datetime('now')").run();
+  const sc = db.prepare("DELETE FROM sso_codes WHERE expires_at < datetime('now')").run();
+  const total = rt.changes + ss.changes + sc.changes;
+  if (total > 0) console.log(`[db] Purga: ${total} registro(s) expirado(s) removido(s).`);
+}
+
+if (process.env.NODE_ENV !== "test") {
+  _purgeExpired();
+  setInterval(_purgeExpired, 24 * 60 * 60 * 1000).unref();
+}
 
 // Seed default desks if none exist
 const deskCount = db.prepare("SELECT COUNT(*) as count FROM desks").get();

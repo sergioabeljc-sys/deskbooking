@@ -134,7 +134,7 @@ describe("PUT /api/desks/:id/rotative-days", () => {
       .send({ rotative_days: ["mon", "wed", "fri"] });
 
     expect(res.status).toBe(200);
-    expect(res.body.rotative_days).toEqual(["mon", "wed", "fri"]);
+    expect(res.body.rotative_days_next).toEqual(["mon", "wed", "fri"]);
   });
 
   it("admin pode configurar dias", async () => {
@@ -144,7 +144,7 @@ describe("PUT /api/desks/:id/rotative-days", () => {
       .send({ rotative_days: ["mon", "tue", "wed", "thu", "fri"] });
 
     expect(res.status).toBe(200);
-    expect(res.body.rotative_days).toHaveLength(5);
+    expect(res.body.rotative_days_next).toHaveLength(5);
   });
 
   it("retorna 400 com dias inválidos", async () => {
@@ -194,7 +194,7 @@ describe("PUT /api/desks/:id/rotative-days", () => {
       .send({ rotative_days: ["fri", "mon", "mon", "wed"] });
 
     expect(res.status).toBe(200);
-    expect(res.body.rotative_days).toEqual(["mon", "wed", "fri"]);
+    expect(res.body.rotative_days_next).toEqual(["mon", "wed", "fri"]);
   });
 });
 

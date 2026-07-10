@@ -3,6 +3,7 @@ const router = express.Router();
 const db = require("../db");
 const { authMiddleware, adminMiddleware } = require("../middleware/auth");
 const { auditLog } = require("../utils/audit");
+const { getEffectiveRotDays } = require("../utils/spots");
 
 // Exportar reservas CSV (admin) — deve vir antes de /:id para evitar conflito
 router.get("/export", authMiddleware, adminMiddleware, (req, res) => {
@@ -219,6 +220,26 @@ router.post("/", authMiddleware, async (req, res) => {
 
   const desk = db.prepare("SELECT * FROM desks WHERE id = ? AND is_active = 1").get(deskIdInt);
   if (!desk) return res.status(404).json({ error: "Mesa não encontrada ou inativa" });
+
+  // Verifica se usuário possui mesa própria disponível neste dia
+  const DOW_MAP = { 1: "mon", 2: "tue", 3: "wed", 4: "thu", 5: "fri" };
+  const dowCode = DOW_MAP[dow];
+  const ownedDesk = db.prepare(
+    "SELECT id, name, type, rotative_days, rotative_days_next, rotative_days_next_from FROM desks WHERE owner_id = ? AND is_active = 1"
+  ).get(req.user.id);
+  if (ownedDesk) {
+    if (ownedDesk.type === "fixed") {
+      return res.status(409).json({ error: "Você possui mesa fixa e não precisa fazer reserva." });
+    }
+    if (ownedDesk.type === "rotative") {
+      const effectiveDays = getEffectiveRotDays(ownedDesk, date);
+      if (!effectiveDays.includes(dowCode)) {
+        return res.status(409).json({
+          error: `Sua mesa (${ownedDesk.name}) está disponível para você neste dia — reserva não é necessária.`,
+        });
+      }
+    }
+  }
 
   // Verifica se usuário já tem reserva nesta data
   const myBooking = db.prepare("SELECT id FROM bookings WHERE user_id = ? AND date = ?").get(req.user.id, date);

@@ -23,7 +23,8 @@ const jwt = require("jsonwebtoken");
 
 beforeEach(() => {
   jest.clearAllMocks();
-  ssoService._stateStore.clear();
+  db.prepare("DELETE FROM sso_states").run();
+  db.prepare("DELETE FROM sso_codes").run();
 });
 
 // ─── /api/auth/sso/login ──────────────────────────────────────────────────────
@@ -68,12 +69,13 @@ describe("GET /api/auth/sso/login", () => {
     expect(location).toMatch(/[?&]state=[a-f0-9]{64}/);
   });
 
-  it("armazena state no stateStore", async () => {
+  it("armazena state no banco após login", async () => {
     await request(app)
       .get("/api/auth/sso/login?email=ana@tendaatacado.com.br")
       .redirects(0);
 
-    expect(ssoService._stateStore.size).toBe(1);
+    const count = db.prepare("SELECT COUNT(*) as cnt FROM sso_states").get().cnt;
+    expect(count).toBe(1);
   });
 });
 
@@ -94,7 +96,8 @@ describe("GET /api/auth/sso/callback", () => {
 
   function setupState(company = "tenda") {
     const state = "a".repeat(64);
-    ssoService._stateStore.set(state, { company, expiresAt: Date.now() + 600_000 });
+    const expiresAt = new Date(Date.now() + 600_000).toISOString();
+    db.prepare("INSERT OR REPLACE INTO sso_states (state, company, expires_at) VALUES (?, ?, ?)").run(state, company, expiresAt);
     return state;
   }
 
@@ -115,7 +118,7 @@ describe("GET /api/auth/sso/callback", () => {
     `).run(u.name, u.email, u.password_hash, u.is_admin, u.entra_oid, u.status, u.company);
   }
 
-  it("redireciona para / com sso_token após login bem-sucedido", async () => {
+  it("redireciona para / com sso_code após login bem-sucedido", async () => {
     insertUser();
     const state = setupState("tenda");
     global.fetch.mockResolvedValue({
@@ -128,7 +131,7 @@ describe("GET /api/auth/sso/callback", () => {
       .redirects(0);
 
     expect(res.status).toBe(302);
-    expect(res.headers.location).toContain("sso_token=");
+    expect(res.headers.location).toContain("sso_code=");
   });
 
   it("retorna 400 para state inválido", async () => {
@@ -203,7 +206,7 @@ describe("GET /api/auth/sso/callback", () => {
     expect(res2.status).toBe(400);
   });
 
-  it("JWT emitido tem expiração de 8h", async () => {
+  it("JWT emitido via exchange tem expiração de 1h", async () => {
     insertUser();
     const state = setupState("tenda");
     global.fetch.mockResolvedValue({
@@ -211,16 +214,20 @@ describe("GET /api/auth/sso/callback", () => {
       json: async () => ({ id_token: buildIdToken({ oid: "test-oid-123" }) }),
     });
 
-    const res = await request(app)
+    const callbackRes = await request(app)
       .get(`/api/auth/sso/callback?code=CODE&state=${state}`)
       .redirects(0);
 
-    const location = res.headers.location || "";
-    const tokenMatch = location.match(/sso_token=([^&]+)/);
-    if (tokenMatch) {
-      const decoded = jwt.decode(decodeURIComponent(tokenMatch[1]));
-      const expIn = decoded.exp - decoded.iat;
-      expect(expIn).toBeCloseTo(8 * 3600, -1);
-    }
+    const location = callbackRes.headers.location || "";
+    const codeMatch = location.match(/sso_code=([^&]+)/);
+    expect(codeMatch).toBeTruthy();
+
+    const exchangeRes = await request(app)
+      .get(`/api/auth/sso/exchange?code=${codeMatch[1]}`);
+    expect(exchangeRes.status).toBe(200);
+
+    const decoded = jwt.decode(exchangeRes.body.token);
+    const expIn = decoded.exp - decoded.iat;
+    expect(expIn).toBeCloseTo(1 * 3600, -1);
   });
 });

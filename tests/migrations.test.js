@@ -165,7 +165,9 @@ describe("Migrations v2", () => {
     expect(versions).toContain("005_v2_spots.sql");
     expect(versions).toContain("006_v2_departments.sql");
     expect(versions).toContain("007_v2_access_requests.sql");
-    expect(versions.length).toBe(6);
+    expect(versions).toContain("008_v2_desk_schedule_pending.sql");
+    expect(versions).toContain("009_v2_sso_stores.sql");
+    expect(versions.length).toBe(8);
   });
 
   it("não aplica migração já registrada em schema_version", () => {

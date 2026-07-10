@@ -219,6 +219,15 @@ router.post("/request-access", (req, res) => {
   res.json({ ok: true });
 });
 
+// Troca código SSO de uso único por JWT + refreshToken — token nunca aparece na URL (#4)
+router.get("/sso/exchange", (req, res) => {
+  const { code } = req.query;
+  if (!code) return res.status(400).json({ error: "Código SSO obrigatório." });
+  const entry = ssoService.consumeSsoCode(code);
+  if (!entry) return res.status(401).json({ error: "Código SSO inválido ou expirado." });
+  res.json({ token: entry.token, refreshToken: entry.refreshToken, user: entry.user });
+});
+
 router.post("/logout", (req, res) => {
   const { refreshToken } = req.body;
   if (refreshToken) {
@@ -300,11 +309,13 @@ router.get("/sso/callback", async (req, res) => {
     is_ti: user.is_ti,
     weekly_office_days: user.weekly_office_days ?? 3,
   };
-  const token = jwt.sign(tokenPayload, SECRET, { expiresIn: "8h" });
 
-  // Redireciona para o frontend com o token na query string
-  // O frontend deve extrair e armazenar o token, removendo-o da URL
-  res.redirect(`/?sso_token=${encodeURIComponent(token)}`);
+  // Emite JWT + refresh token (igual ao fluxo de login normal) (#11)
+  const { token, refreshToken } = issueTokens(tokenPayload);
+
+  // Armazena em código de uso único — evita JWT na URL (#4)
+  const ssoCode = ssoService.storeSsoCode(token, refreshToken, tokenPayload);
+  res.redirect(`/?sso_code=${ssoCode}`);
 });
 
 module.exports = router;
