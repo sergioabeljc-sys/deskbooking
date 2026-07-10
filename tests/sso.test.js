@@ -55,9 +55,9 @@ describe("GET /api/auth/sso/login", () => {
     expect(res.status).toBe(400);
   });
 
-  it("retorna 400 sem e-mail", async () => {
+  it("retorna 503 sem e-mail quando ENTRA_CLIENT_ID não configurado (fluxo common)", async () => {
     const res = await request(app).get("/api/auth/sso/login");
-    expect(res.status).toBe(400);
+    expect(res.status).toBe(503);
   });
 
   it("inclui state na URL de redirect (proteção CSRF)", async () => {

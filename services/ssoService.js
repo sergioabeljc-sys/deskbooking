@@ -31,7 +31,71 @@ function isConfigured(company) {
   return !!(cfg?.clientId && cfg?.clientSecret && cfg?.tenantId);
 }
 
-// ─── State store — persistido em SQLite (#16) ─��───────────────────────────────
+function isCommonConfigured() {
+  return !!(process.env.ENTRA_CLIENT_ID && process.env.ENTRA_CLIENT_SECRET);
+}
+
+function detectCompanyFromTid(tid) {
+  if (tid && tid === process.env.ENTRA_VOXCRED_TENANT_ID) return "voxcred";
+  if (tid && tid === process.env.ENTRA_TENDA_TENANT_ID) return "tenda";
+  return null;
+}
+
+// ─── Fluxo common (app registration único multi-tenant) ──────────────────────
+
+function buildCommonAuthUrl(redirectUri) {
+  const clientId = process.env.ENTRA_CLIENT_ID;
+  const state = crypto.randomBytes(32).toString("hex");
+  const expiresAt = new Date(Date.now() + STATE_TTL_MS).toISOString();
+  db.prepare("INSERT INTO sso_states (state, company, expires_at) VALUES (?, ?, ?)").run(state, "common", expiresAt);
+
+  const params = new URLSearchParams({
+    client_id: clientId,
+    response_type: "code",
+    redirect_uri: redirectUri,
+    response_mode: "query",
+    scope: "openid profile email",
+    state,
+  });
+
+  return { url: `https://login.microsoftonline.com/common/oauth2/v2.0/authorize?${params}` };
+}
+
+async function exchangeCommonCode(code, redirectUri) {
+  const body = new URLSearchParams({
+    client_id: process.env.ENTRA_CLIENT_ID,
+    client_secret: process.env.ENTRA_CLIENT_SECRET,
+    code,
+    redirect_uri: redirectUri,
+    grant_type: "authorization_code",
+  });
+
+  const resp = await fetch("https://login.microsoftonline.com/common/oauth2/v2.0/token", {
+    method: "POST",
+    headers: { "Content-Type": "application/x-www-form-urlencoded" },
+    body: body.toString(),
+  });
+
+  if (!resp.ok) {
+    const text = await resp.text();
+    throw new Error(`Token exchange failed: ${resp.status} ${text}`);
+  }
+
+  return resp.json();
+}
+
+function decodeCommonIdToken(idToken) {
+  const parts = idToken.split(".");
+  if (parts.length !== 3) throw new Error("id_token malformado");
+  const payload = JSON.parse(Buffer.from(parts[1], "base64url").toString("utf8"));
+  const now = Math.floor(Date.now() / 1000);
+  if (payload.exp && payload.exp < now) throw new Error("id_token expirado");
+  if (payload.nbf && payload.nbf > now + 60) throw new Error("id_token ainda não válido");
+  if (payload.aud && payload.aud !== process.env.ENTRA_CLIENT_ID) throw new Error("id_token: aud inválido");
+  return payload;
+}
+
+// ─── State store — persistido em SQLite (#16) ────────────────────────────────
 
 function buildAuthUrl(company, redirectUri) {
   const cfg = tenantConfig(company);
@@ -145,10 +209,15 @@ function decodeAndValidateIdToken(idToken, company) {
 module.exports = {
   companyFromEmail,
   isConfigured,
+  isCommonConfigured,
+  detectCompanyFromTid,
   buildAuthUrl,
-  consumeState,
+  buildCommonAuthUrl,
   exchangeCode,
+  exchangeCommonCode,
   decodeAndValidateIdToken,
+  decodeCommonIdToken,
+  consumeState,
   storeSsoCode,
   consumeSsoCode,
 };

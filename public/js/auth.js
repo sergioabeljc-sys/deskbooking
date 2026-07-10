@@ -24,15 +24,9 @@ if (API.getToken() && API.getUser()) {
   window.location.href = "/week.html";
 }
 
-// AC1: inicia fluxo SSO ��� detecta empresa pelo e-mail digitado
+// AC1: inicia fluxo SSO common — sem precisar digitar e-mail
 function loginWithSSO() {
-  const email = document.getElementById("email").value.trim();
-  if (!email) {
-    showToast("Digite seu e-mail corporativo para continuar.", "error");
-    document.getElementById("email").focus();
-    return;
-  }
-  location.href = `/api/auth/sso/login?email=${encodeURIComponent(email)}`;
+  location.href = "/api/auth/sso/login";
 }
 
 document.getElementById("auth-form").addEventListener("submit", async (e) => {

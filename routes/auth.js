@@ -254,22 +254,34 @@ router.post("/logout", (req, res) => {
 
 // ─── SSO Entra ID (v2) ────────────────────────────────────────────────────────
 
-// Inicia fluxo SSO: aceita ?company=voxcred|tenda diretamente, ou detecta pelo e-mail
+// Inicia fluxo SSO.
+// Sem parâmetros → fluxo common (app registration único, detecta tenant no callback).
+// ?email=... ou ?company=... → fluxo legado por tenant específico.
 router.get("/sso/login", (req, res) => {
+  const redirectUri = `${req.protocol}://${req.get("host")}/api/auth/sso/callback`;
+
+  // Fluxo common: botão único sem email
+  if (!req.query.email && !req.query.company) {
+    if (!ssoService.isCommonConfigured()) {
+      return res.status(503).json({ error: "SSO não configurado. Defina ENTRA_CLIENT_ID e ENTRA_CLIENT_SECRET." });
+    }
+    const { url } = ssoService.buildCommonAuthUrl(redirectUri);
+    return res.redirect(url);
+  }
+
+  // Fluxo legado: detecta empresa pelo email ou company param
   const VALID_COMPANIES = ["voxcred", "tenda"];
   const company = VALID_COMPANIES.includes(req.query.company)
     ? req.query.company
     : ssoService.companyFromEmail(req.query.email || "");
 
   if (!company) {
-    return res.status(400).json({ error: "Empresa não identificada. Informe ?company=voxcred ou ?company=tenda." });
+    return res.status(400).json({ error: "Empresa não identificada pelo e-mail informado." });
   }
-
   if (!ssoService.isConfigured(company)) {
     return res.status(503).json({ error: "SSO não configurado para este domínio." });
   }
 
-  const redirectUri = `${req.protocol}://${req.get("host")}/api/auth/sso/callback`;
   const { url } = ssoService.buildAuthUrl(company, redirectUri);
   res.redirect(url);
 });
@@ -293,8 +305,18 @@ router.get("/sso/callback", async (req, res) => {
 
   let payload;
   try {
-    const tokens = await ssoService.exchangeCode(company, code, redirectUri);
-    payload = ssoService.decodeAndValidateIdToken(tokens.id_token, company);
+    if (company === "common") {
+      const tokens = await ssoService.exchangeCommonCode(code, redirectUri);
+      payload = ssoService.decodeCommonIdToken(tokens.id_token);
+      // Detecta empresa pelo tid retornado pelo Azure
+      const detectedCompany = ssoService.detectCompanyFromTid(payload.tid);
+      if (!detectedCompany) {
+        return res.status(401).json({ error: "Tenant não autorizado." });
+      }
+    } else {
+      const tokens = await ssoService.exchangeCode(company, code, redirectUri);
+      payload = ssoService.decodeAndValidateIdToken(tokens.id_token, company);
+    }
   } catch (err) {
     console.error("[sso] Erro no callback:", err.message);
     return res.status(401).json({ error: "Autenticação SSO falhou." });
